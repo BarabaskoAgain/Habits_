@@ -14,10 +14,13 @@ import {
   StyleSheet,
   Dimensions,
   Animated,
-  SafeAreaView
+  SafeAreaView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 
 // Импорт компонентов
 import MainApp from './MainApp';
@@ -28,26 +31,18 @@ import SettingsScreen from './SettingsScreen';
 import NotificationManager from './NotificationManager';
 
 // Импорт констант
-import { 
-  THEMES, 
+import {
+  THEMES,
   DEFAULT_SETTINGS,
   STORAGE_KEYS,
   DEFAULT_ACHIEVEMENTS,
   SPACING,
   TYPOGRAPHY,
-  BORDER_RADIUS
+  BORDER_RADIUS,
 } from './constants';
 
-import { 
-  DEMO_HABITS,
-  generateOnboardingHabits
-} from './demoData';
-import { 
-  generateId,
-  dateUtils,
-  statsUtils,
-  weightUtils
-} from './utils';
+import { DEMO_HABITS, generateOnboardingHabits } from './demoData';
+import { generateId, dateUtils, statsUtils, weightUtils } from './utils';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -63,35 +58,38 @@ const AppContent = () => {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
   const [appState, setAppState] = useState(AppState.currentState);
-  
+
   // === UI СОСТОЯНИЕ ===
   const [showAddHabit, setShowAddHabit] = useState(false);
   const [editingHabit, setEditingHabit] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [isFirstLaunch, setIsFirstLaunch] = useState(false);
-  const [notificationsInitialized, setNotificationsInitialized] = useState(false);
+  const [notificationsInitialized, setNotificationsInitialized] =
+    useState(false);
 
   // === АНИМАЦИИ ===
   const splashAnim = useRef(new Animated.Value(1)).current;
   const appAnim = useRef(new Animated.Value(0)).current;
 
   // === ЦВЕТОВАЯ СХЕМА ===
-  const colors = THEMES[settings.theme]?.[settings.isDarkMode ? 'dark' : 'light'] || THEMES.blue.light;
+  const colors =
+    THEMES[settings.theme]?.[settings.isDarkMode ? 'dark' : 'light'] ||
+    THEMES.blue.light;
 
   // === НОВЫЕ HELPER ФУНКЦИИ (ПСИХОЛОГИЯ) ===
-  
+
   // Расчет прогресса дня
   const calculateDayProgress = useCallback((habits, date) => {
     let completed = 0;
     let total = 0;
-    
-    habits.forEach(habit => {
+
+    habits.forEach((habit) => {
       if (habit.isActive === false) return;
-      
+
       total++;
       const completion = habit.completions?.[date];
-      
+
       if (habit.type === 'boolean' && completion) {
         completed++;
       } else if (habit.type === 'weight' && completion?.weight > 0) {
@@ -100,35 +98,37 @@ const AppContent = () => {
         completed++;
       }
     });
-    
-    return { 
-      completed, 
-      total, 
-      percentage: total > 0 ? Math.round((completed / total) * 100) : 0 
+
+    return {
+      completed,
+      total,
+      percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
     };
   }, []);
 
   // Проверка достижений
   const checkForNewAchievements = useCallback(async () => {
     try {
-      const unlocked = achievements.map(a => a.id);
-      const available = DEFAULT_ACHIEVEMENTS.filter(a => !unlocked.includes(a.id));
-      
+      const unlocked = achievements.map((a) => a.id);
+      const available = DEFAULT_ACHIEVEMENTS.filter(
+        (a) => !unlocked.includes(a.id)
+      );
+
       if (available.length === 0) {
         console.log('Все достижения уже разблокированы');
         return;
       }
 
       const newUnlockedAchievements = [];
-      
+
       // Первая привычка
       if (habits.length > 0 && !unlocked.includes('first_habit')) {
-        const achievement = available.find(a => a.id === 'first_habit');
+        const achievement = available.find((a) => a.id === 'first_habit');
         if (achievement) newUnlockedAchievements.push(achievement);
       }
-      
+
       // Другие проверки достижений...
-      
+
       // Разблокируем новые достижения
       if (newUnlockedAchievements.length > 0 && isReady) {
         for (const achievement of newUnlockedAchievements) {
@@ -151,51 +151,63 @@ const AppContent = () => {
   const saveAchievements = useCallback(async (newAchievements) => {
     try {
       if (!newAchievements) return;
-      await AsyncStorage.setItem(STORAGE_KEYS.achievements, JSON.stringify(newAchievements));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.achievements,
+        JSON.stringify(newAchievements)
+      );
       setAchievements(newAchievements);
     } catch (error) {
       console.error('Ошибка сохранения достижений:', error);
     }
   }, []);
 
-  const saveHabits = useCallback(async (newHabits) => {
-    try {
-      if (!newHabits) {
-        console.log('saveHabits: нет данных для сохранения');
-        return;
+  const saveHabits = useCallback(
+    async (newHabits) => {
+      try {
+        if (!newHabits) {
+          console.log('saveHabits: нет данных для сохранения');
+          return;
+        }
+
+        console.log('saveHabits: сохраняем', newHabits.length, 'привычек');
+
+        // Сначала обновляем state
+        setHabits(newHabits);
+
+        // Затем сохраняем в AsyncStorage
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.habits,
+          JSON.stringify(newHabits)
+        );
+        console.log('saveHabits: данные сохранены в AsyncStorage');
+
+        // Проверяем достижения после каждого изменения
+        setTimeout(() => {
+          console.log('saveHabits: запускаем проверку достижений');
+          checkForNewAchievements();
+        }, 100);
+      } catch (error) {
+        console.error('Ошибка сохранения привычек:', error);
+        Alert.alert('Ошибка', 'Не удалось сохранить изменения');
+        throw error;
       }
-      
-      console.log('saveHabits: сохраняем', newHabits.length, 'привычек');
-      
-      // Сначала обновляем state
-      setHabits(newHabits);
-      
-      // Затем сохраняем в AsyncStorage
-      await AsyncStorage.setItem(STORAGE_KEYS.habits, JSON.stringify(newHabits));
-      console.log('saveHabits: данные сохранены в AsyncStorage');
-      
-      // Проверяем достижения после каждого изменения
-      setTimeout(() => {
-        console.log('saveHabits: запускаем проверку достижений');
-        checkForNewAchievements();
-      }, 100);
-      
-    } catch (error) {
-      console.error('Ошибка сохранения привычек:', error);
-      Alert.alert('Ошибка', 'Не удалось сохранить изменения');
-      throw error;
-    }
-  }, [checkForNewAchievements]);
+    },
+    [checkForNewAchievements]
+  );
 
   // ИСПРАВЛЕННАЯ ФУНКЦИЯ saveSettings БЕЗ АВТОМАТИЧЕСКИХ УВЕДОМЛЕНИЙ
   const saveSettings = useCallback(async (newSettings) => {
     try {
       if (!newSettings) return;
-      await AsyncStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(newSettings));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.settings,
+        JSON.stringify(newSettings)
+      );
       setSettings(newSettings);
-      
-      console.log('✅ Настройки сохранены (уведомления НЕ планируются автоматически)');
-      
+
+      console.log(
+        '✅ Настройки сохранены (уведомления НЕ планируются автоматически)'
+      );
     } catch (error) {
       console.error('Ошибка сохранения настроек:', error);
     }
@@ -212,95 +224,69 @@ const AppContent = () => {
   }, []);
 
 const archiveHabit = useCallback(async (habitId) => {
+    console.log('🗂️🗂️🗂️ App.js: archiveHabit ВЫЗВАНА! habitId =', habitId);
+    console.log('🗂️ App.js: Текущие привычки:', habits.length);
+    console.log('🗂️ App.js: Текущий архив:', archivedHabits.length);
+    
     try {
       const habitToArchive = habits.find(h => h.id === habitId);
-      if (!habitToArchive) return;
-
-      // Функция расчета плана (как в статистике)
-      const calculatePlanFromCreation = (habit, startDate, endDate) => {
-        try {
-          const habitCreated = new Date(habit.createdAt);
-          const localStartDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-          const localEndDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-          const localHabitCreated = new Date(habitCreated.getFullYear(), habitCreated.getMonth(), habitCreated.getDate());
-          
-          let planStartDate = localHabitCreated >= localStartDate && localHabitCreated <= localEndDate 
-            ? localHabitCreated 
-            : localStartDate;
-          
-          const msPerDay = 1000 * 60 * 60 * 24;
-          const diffDays = (localEndDate.getTime() - planStartDate.getTime()) / msPerDay;
-          const totalDays = Math.floor(diffDays) + 1;
-          
-          if (habit.type === 'boolean') {
-            const targetDaysPerWeek = habit.targetDaysPerWeek || 7;
-            return Math.round((totalDays / 7) * targetDaysPerWeek);
-          } else if (habit.type === 'weight') {
-            const targetDaysPerWeek = habit.targetDaysPerWeek || 7;
-            return Math.round((totalDays / 7) * targetDaysPerWeek); // ИСПРАВЛЕНО: план для веса тоже зависит от частоты
-          } else if (habit.type === 'number' || habit.type === 'quantitative') {
-            const targetDaysPerWeek = habit.targetDaysPerWeek || 7;
-            const dailyTarget = habit.targetValue || 1;
-            const totalPlanDays = Math.round((totalDays / 7) * targetDaysPerWeek);
-            return dailyTarget * totalPlanDays;
-          }
-          
-          return totalDays;
-        } catch (error) {
-          console.error('Ошибка расчета плана:', error);
-          return 0;
-        }
-      };
-
-      // Считаем статистику за весь период существования привычки
-      const startDate = new Date(habitToArchive.createdAt);
-      const endDate = new Date(); // До текущего момента
+      console.log('🗂️ App.js: Найдена привычка для архивирования?', !!habitToArchive);
       
-      // Используем правильный расчет плана
-      const totalPlan = calculatePlanFromCreation(habitToArchive, startDate, endDate);
-      
-      // Считаем факт из completions
-      let totalFact = 0;
-      
-      if (habitToArchive.type === 'boolean') {
-        // Для булевых привычек - количество выполненных дней
-        totalFact = Object.keys(habitToArchive.completions || {}).filter(date => habitToArchive.completions[date]).length;
-      } else if (habitToArchive.type === 'weight') {
-        // ИСПРАВЛЕНО: правильная проверка структуры данных для веса
-        totalFact = Object.keys(habitToArchive.completions || {}).filter(date => {
-          const completion = habitToArchive.completions[date];
-          return completion && typeof completion === 'object' && completion.weight > 0;
-        }).length;
-      } else if (habitToArchive.type === 'quantitative' || habitToArchive.type === 'number') {
-        // Для количественных привычек - сумма значений
-        totalFact = Object.values(habitToArchive.completions || {}).reduce((sum, completion) => {
-          return sum + (completion.value || 0);
-        }, 0);
+      if (!habitToArchive) {
+        console.error('🗂️ App.js: Привычка не найдена! ID:', habitId);
+        console.log('🗂️ App.js: Доступные ID привычек:', habits.map(h => h.id));
+        return;
       }
 
-      const completionPercentage = totalPlan > 0 ? Math.round((totalFact / totalPlan) * 100) : 0;
+      console.log('🗂️ App.js: Архивируем привычку:', habitToArchive.name);
+
+      // Упрощенный расчет статистики
+      const startDate = new Date(habitToArchive.createdAt);
+      const endDate = new Date();
+      
+      // Считаем дни с момента создания
+      const totalDays = Math.max(1, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)));
+      
+      // Считаем выполненные дни
+      let completedDays = 0;
+      if (habitToArchive.completions) {
+        Object.entries(habitToArchive.completions).forEach(([date, completion]) => {
+          if (habitToArchive.type === 'boolean' && completion) {
+            completedDays++;
+          } else if (habitToArchive.type === 'weight' && completion?.weight > 0) {
+            completedDays++;
+          } else if ((habitToArchive.type === 'number' || habitToArchive.type === 'quantitative') && completion?.completed) {
+            completedDays++;
+          }
+        });
+      }
+      
+      const completionPercentage = Math.round((completedDays / totalDays) * 100);
+      console.log('🗂️ App.js: Статистика - дней:', totalDays, 'выполнено:', completedDays, 'процент:', completionPercentage);
 
       const archivedHabit = {
         ...habitToArchive,
         archivedAt: new Date().toISOString(),
+        completionPercentage,
         archiveStats: {
-          totalPlan,
-          totalFact,
+          totalDays,
+          completedDays,
           completionPercentage,
           startDate: startDate.toISOString(),
           endDate: endDate.toISOString()
-        },
-        completionPercentage // Для обратной совместимости
+        }
       };
 
       // Обновляем состояния
       const newHabits = habits.filter(h => h.id !== habitId);
       const newArchivedHabits = [...archivedHabits, archivedHabit];
 
+      console.log('🗂️ App.js: Сохраняем изменения...');
       await saveHabits(newHabits);
       await saveArchivedHabits(newArchivedHabits);
+      console.log('🗂️ App.js: Изменения сохранены!');
 
-      // ДОБАВЛЕНО: Отменяем уведомления для архивированной привычки
+      // Отменяем уведомления для архивированной привычки
       if (notificationsInitialized) {
         await NotificationManager.cancelHabitReminder(habitId);
       }
@@ -311,106 +297,125 @@ const archiveHabit = useCallback(async (habitId) => {
         [{ text: 'OK' }]
       );
 
+      console.log('🗂️ App.js: Архивирование завершено успешно!');
+
     } catch (error) {
-      console.error('Ошибка архивирования:', error);
-      Alert.alert('Ошибка', 'Не удалось архивировать привычку');
+      console.error('🗂️ App.js: ОШИБКА архивирования:', error);
+      console.error('🗂️ App.js: Stack trace:', error.stack);
+      Alert.alert('Ошибка', 'Не удалось архивировать привычку: ' + error.message);
     }
   }, [habits, archivedHabits, saveHabits, saveArchivedHabits, notificationsInitialized]);
 
-  const restoreHabit = useCallback(async (habitId) => {
-    try {
-      const habitToRestore = archivedHabits.find(h => h.id === habitId);
-      if (!habitToRestore) return;
+  const restoreHabit = useCallback(
+    async (habitId) => {
+      try {
+        const habitToRestore = archivedHabits.find((h) => h.id === habitId);
+        if (!habitToRestore) return;
 
-      // Проверяем, восстанавливаем ли в день архивирования
-      const today = new Date().toISOString().split('T')[0];
-      const archivedDate = habitToRestore.archivedAt ? 
-        new Date(habitToRestore.archivedAt).toISOString().split('T')[0] : null;
-      
-      // Если восстанавливаем НЕ в день архивирования - обновляем createdAt
-      const shouldUpdateCreatedAt = archivedDate !== today;
+        // Проверяем, восстанавливаем ли в день архивирования
+        const today = new Date().toISOString().split('T')[0];
+        const archivedDate = habitToRestore.archivedAt
+          ? new Date(habitToRestore.archivedAt).toISOString().split('T')[0]
+          : null;
 
-      const restoredHabit = {
-        ...habitToRestore,
-        createdAt: shouldUpdateCreatedAt ? new Date().toISOString() : habitToRestore.createdAt,
-        isRestored: true, // Помечаем как восстановленную
-        restoredAt: new Date().toISOString(),
-        // СОХРАНЯЕМ архивные данные для суммирования
-        previousArchiveStats: habitToRestore.archiveStats,
-        // Удаляем только текущие архивные поля
-        archivedAt: undefined,
-        completionPercentage: undefined
-      };
+        // Если восстанавливаем НЕ в день архивирования - обновляем createdAt
+        const shouldUpdateCreatedAt = archivedDate !== today;
 
-      // Удаляем undefined поля
-      delete restoredHabit.archivedAt;
-      delete restoredHabit.completionPercentage;
+        const restoredHabit = {
+          ...habitToRestore,
+          createdAt: shouldUpdateCreatedAt
+            ? new Date().toISOString()
+            : habitToRestore.createdAt,
+          isRestored: true, // Помечаем как восстановленную
+          restoredAt: new Date().toISOString(),
+          // СОХРАНЯЕМ архивные данные для суммирования
+          previousArchiveStats: habitToRestore.archiveStats,
+          // Удаляем только текущие архивные поля
+          archivedAt: undefined,
+          completionPercentage: undefined,
+        };
 
-      // Обновляем состояния
-      const newArchivedHabits = archivedHabits.filter(h => h.id !== habitId);
-      const newHabits = [...habits, restoredHabit];
+        // Удаляем undefined поля
+        delete restoredHabit.archivedAt;
+        delete restoredHabit.completionPercentage;
 
-      await saveHabits(newHabits);
-      await saveArchivedHabits(newArchivedHabits);
+        // Обновляем состояния
+        const newArchivedHabits = archivedHabits.filter(
+          (h) => h.id !== habitId
+        );
+        const newHabits = [...habits, restoredHabit];
 
-      Alert.alert(
-        'Привычка восстановлена!',
-        `"${restoredHabit.name}" снова активна`,
-        [{ text: 'OK' }]
-      );
+        await saveHabits(newHabits);
+        await saveArchivedHabits(newArchivedHabits);
 
-    } catch (error) {
-      console.error('Ошибка восстановления:', error);
-      Alert.alert('Ошибка', 'Не удалось восстановить привычку');
-    }
-  }, [habits, archivedHabits, saveHabits, saveArchivedHabits]);
+        Alert.alert(
+          'Привычка восстановлена!',
+          `"${restoredHabit.name}" снова активна`,
+          [{ text: 'OK' }]
+        );
+      } catch (error) {
+        console.error('Ошибка восстановления:', error);
+        Alert.alert('Ошибка', 'Не удалось восстановить привычку');
+      }
+    },
+    [habits, archivedHabits, saveHabits, saveArchivedHabits]
+  );
 
-  const deleteArchivedHabit = useCallback(async (habitId) => {
-    try {
-      const habit = archivedHabits.find(h => h.id === habitId);
-      if (!habit) return;
+  const deleteArchivedHabit = useCallback(
+    async (habitId) => {
+      try {
+        const habit = archivedHabits.find((h) => h.id === habitId);
+        if (!habit) return;
 
-      Alert.alert(
-        'Удалить навсегда?',
-        `"${habit.name}" будет удалена безвозвратно.`,
-        [
-          { text: 'Отмена', style: 'cancel' },
-          {
-            text: 'Удалить',
-            style: 'destructive',
-            onPress: async () => {
-              const newArchivedHabits = archivedHabits.filter(h => h.id !== habitId);
-              await saveArchivedHabits(newArchivedHabits);
-              Alert.alert('Удалено', 'Привычка удалена из архива');
-            }
-          }
-        ]
-      );
-    } catch (error) {
-      console.error('Ошибка удаления из архива:', error);
-      Alert.alert('Ошибка', 'Не удалось удалить привычку');
-    }
-  }, [archivedHabits, saveArchivedHabits]);
+        Alert.alert(
+          'Удалить навсегда?',
+          `"${habit.name}" будет удалена безвозвратно.`,
+          [
+            { text: 'Отмена', style: 'cancel' },
+            {
+              text: 'Удалить',
+              style: 'destructive',
+              onPress: async () => {
+                const newArchivedHabits = archivedHabits.filter(
+                  (h) => h.id !== habitId
+                );
+                await saveArchivedHabits(newArchivedHabits);
+                Alert.alert('Удалено', 'Привычка удалена из архива');
+              },
+            },
+          ]
+        );
+      } catch (error) {
+        console.error('Ошибка удаления из архива:', error);
+        Alert.alert('Ошибка', 'Не удалось удалить привычку');
+      }
+    },
+    [archivedHabits, saveArchivedHabits]
+  );
 
   // === ОБРАБОТЧИК ИЗМЕНЕНИЯ СОСТОЯНИЯ ПРИЛОЖЕНИЯ ===
-  const handleAppStateChange = useCallback((nextAppState) => {
-    if (appState.match(/inactive|background/) && nextAppState === 'active') {
-      // Приложение вернулось в активное состояние - проверяем достижения
-      setTimeout(() => checkForNewAchievements(), 500);
-    }
-    setAppState(nextAppState);
-  }, [appState, checkForNewAchievements]);
+  const handleAppStateChange = useCallback(
+    (nextAppState) => {
+      if (appState.match(/inactive|background/) && nextAppState === 'active') {
+        // Приложение вернулось в активное состояние - проверяем достижения
+        setTimeout(() => checkForNewAchievements(), 500);
+      }
+      setAppState(nextAppState);
+    },
+    [appState, checkForNewAchievements]
+  );
 
   // === ФУНКЦИИ ЗАГРУЗКИ ===
-const loadHabits = useCallback(async () => {
+
+  const loadHabits = useCallback(async () => {
     try {
       const stored = await AsyncStorage.getItem(STORAGE_KEYS.habits);
       if (stored) {
         const parsed = JSON.parse(stored);
         // ДОБАВЛЕНО: проверка цвета для старых привычек
-        const habitsWithColors = parsed.map(habit => ({
+        const habitsWithColors = parsed.map((habit) => ({
           ...habit,
-          color: habit.color || '#2196F3' // Синий по умолчанию
+          color: habit.color || '#2196F3', // Синий по умолчанию
         }));
         setHabits(habitsWithColors);
         return habitsWithColors;
@@ -479,52 +484,65 @@ const loadHabits = useCallback(async () => {
   }, []);
 
   // === ОБРАБОТЧИК ОШИБОК ИНИЦИАЛИЗАЦИИ ===
-  const handleInitializationError = useCallback((error) => {
-    Alert.alert(
-      'Ошибка запуска',
-      'Произошла ошибка при загрузке приложения. Попробуйте перезапустить.',
-      [
-        {
-          text: 'Перезапустить',
-          onPress: () => {
-            // Прямая инициализация
-            setIsLoading(true);
-            Promise.all([
-              loadHabits(),
-              loadAchievements(),
-              loadSettings(),
-              loadArchivedHabits()
-            ]).then(() => {
-              checkForNewAchievements();
-            }).catch(err => {
-              console.error('Повторная ошибка инициализации:', err);
-            }).finally(() => {
-              setIsLoading(false);
-            });
-          }
-        }
-      ]
-    );
-  }, [loadHabits, loadAchievements, loadSettings, loadArchivedHabits, checkForNewAchievements]);
+  const handleInitializationError = useCallback(
+    (error) => {
+      Alert.alert(
+        'Ошибка запуска',
+        'Произошла ошибка при загрузке приложения. Попробуйте перезапустить.',
+        [
+          {
+            text: 'Перезапустить',
+            onPress: () => {
+              // Прямая инициализация
+              setIsLoading(true);
+              Promise.all([
+                loadHabits(),
+                loadAchievements(),
+                loadSettings(),
+                loadArchivedHabits(),
+              ])
+                .then(() => {
+                  checkForNewAchievements();
+                })
+                .catch((err) => {
+                  console.error('Повторная ошибка инициализации:', err);
+                })
+                .finally(() => {
+                  setIsLoading(false);
+                });
+            },
+          },
+        ]
+      );
+    },
+    [
+      loadHabits,
+      loadAchievements,
+      loadSettings,
+      loadArchivedHabits,
+      checkForNewAchievements,
+    ]
+  );
 
   // === ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ ===
   const initializeApp = useCallback(async () => {
     try {
       setIsLoading(true);
-      
+
       // Загружаем все данные параллельно
-      const [loadedHabits, loadedAchievements, loadedSettings, loadedArchived] = await Promise.all([
-        loadHabits(),
-        loadAchievements(),
-        loadSettings(),
-        loadArchivedHabits()
-      ]);
+      const [loadedHabits, loadedAchievements, loadedSettings, loadedArchived] =
+        await Promise.all([
+          loadHabits(),
+          loadAchievements(),
+          loadSettings(),
+          loadArchivedHabits(),
+        ]);
 
       console.log('Загружено:', {
         habits: loadedHabits.length,
         achievements: loadedAchievements.length,
         archived: loadedArchived.length,
-        settings: loadedSettings
+        settings: loadedSettings,
       });
 
       // Запускаем анимацию появления
@@ -532,13 +550,13 @@ const loadHabits = useCallback(async () => {
         Animated.timing(splashAnim, {
           toValue: 0,
           duration: 400,
-          useNativeDriver: true
+          useNativeDriver: true,
         }),
         Animated.timing(appAnim, {
           toValue: 1,
           duration: 600,
-          useNativeDriver: true
-        })
+          useNativeDriver: true,
+        }),
       ]).start(() => {
         setIsReady(true);
       });
@@ -548,34 +566,39 @@ const loadHabits = useCallback(async () => {
       console.error('Ошибка инициализации:', error);
       handleInitializationError(error);
     }
-  }, [loadHabits, loadAchievements, loadSettings, loadArchivedHabits, handleInitializationError]);
+  }, [
+    loadHabits,
+    loadAchievements,
+    loadSettings,
+    loadArchivedHabits,
+    handleInitializationError,
+  ]);
 
- // === ИСПРАВЛЕННАЯ ИНИЦИАЛИЗАЦИЯ УВЕДОМЛЕНИЙ (ТОЛЬКО ОДИН РАЗ) ===
+  // === ИСПРАВЛЕННАЯ ИНИЦИАЛИЗАЦИЯ УВЕДОМЛЕНИЙ (ТОЛЬКО ОДИН РАЗ) ===
   useEffect(() => {
     const initializeNotifications = async () => {
       // Проверяем, что приложение готово, есть привычки и уведомления еще не инициализированы
       if (isReady && habits.length > 0 && !notificationsInitialized) {
         console.log('🔔 Инициализация уведомлений ОДИН РАЗ...');
-        
+
         try {
           // Инициализируем уведомления
           const notificationsEnabled = await NotificationManager.initialize();
-          
+
           if (notificationsEnabled) {
             console.log('✅ Уведомления инициализированы успешно');
-            
+
             // Планируем напоминания для всех привычек одним вызовом
             await NotificationManager.scheduleAllReminders(habits, settings);
-            
+
             // Показываем отладочную информацию
             await NotificationManager.debugInfo();
           } else {
             console.log('❌ Уведомления отключены пользователем');
           }
-          
+
           // Помечаем как инициализированные
           setNotificationsInitialized(true);
-          
         } catch (error) {
           console.error('🚨 Ошибка инициализации уведомлений:', error);
           setNotificationsInitialized(true); // Помечаем как инициализированные даже при ошибке
@@ -592,259 +615,297 @@ const loadHabits = useCallback(async () => {
     initializeApp();
 
     // Подписка на изменения состояния приложения
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    const subscription = AppState.addEventListener(
+      'change',
+      handleAppStateChange
+    );
 
     return () => {
       subscription?.remove();
     };
   }, []);
 
-const addHabit = useCallback(async (habitData) => {
-  try {
-    const newHabit = {
-      id: generateId(),
-      ...habitData,
-      reminderEnabled: habitData.reminderEnabled !== false, // По умолчанию true
-      reminderTime: habitData.reminderTime || '09:00', // Время по умолчанию
-      createdAt: new Date().toISOString(),
-      completions: {},
-      logs: [] // ВАЖНО: Добавляем пустой массив логов
-    };
-    
-    const newHabits = [...habits, newHabit];
-    await saveHabits(newHabits);
-    
-    // ---- Планирование уведомлений ----
-    let notificationSuccess = false;
-    if (newHabit.reminderEnabled && newHabit.reminderTime) {
+  const addHabit = useCallback(
+    async (habitData) => {
       try {
-        if (notificationsInitialized) {
-          notificationSuccess = await NotificationManager.scheduleHabitReminder(newHabit, settings);
+        const newHabit = {
+          id: generateId(),
+          ...habitData,
+          reminderEnabled: habitData.reminderEnabled !== false, // По умолчанию true
+          reminderTime: habitData.reminderTime || '09:00', // Время по умолчанию
+          createdAt: new Date().toISOString(),
+          completions: {},
+          logs: [], // ВАЖНО: Добавляем пустой массив логов
+        };
+
+        const newHabits = [...habits, newHabit];
+        await saveHabits(newHabits);
+
+        // ---- Планирование уведомлений ----
+        let notificationSuccess = false;
+        if (newHabit.reminderEnabled && newHabit.reminderTime) {
+          try {
+            if (notificationsInitialized) {
+              notificationSuccess =
+                await NotificationManager.scheduleHabitReminder(
+                  newHabit,
+                  settings
+                );
+            } else {
+              console.log(
+                'Уведомления еще не инициализированы, будут запланированы позже'
+              );
+              notificationSuccess = true; // Считаем успешным, т.к. запланируются при инициализации
+            }
+          } catch (error) {
+            console.error('Ошибка при планировании уведомления:', error);
+          }
         } else {
-          console.log('Уведомления еще не инициализированы, будут запланированы позже');
-          notificationSuccess = true; // Считаем успешным, т.к. запланируются при инициализации
+          notificationSuccess = true; // Если уведомления отключены - не ошибка
         }
+
+        // Уведомляем пользователя о результате
+        if (notificationSuccess || !newHabit.reminderEnabled) {
+          Alert.alert('Успех!', 'Привычка создана и уведомления настроены');
+        } else {
+          Alert.alert(
+            'Внимание',
+            'Привычка создана, но уведомление не удалось запланировать.\nПроверьте разрешения в настройках устройства.'
+          );
+        }
+
+        setShowAddHabit(false);
+        setEditingHabit(null);
       } catch (error) {
-        console.error('Ошибка при планировании уведомления:', error);
+        console.error('Ошибка добавления привычки:', error);
+        Alert.alert('Ошибка', 'Не удалось создать привычку');
       }
-    } else {
-      notificationSuccess = true; // Если уведомления отключены - не ошибка
-    }
-    
-    // Уведомляем пользователя о результате
-    if (notificationSuccess || !newHabit.reminderEnabled) {
-      Alert.alert('Успех!', 'Привычка создана и уведомления настроены');
-    } else {
-      Alert.alert('Внимание', 'Привычка создана, но уведомление не удалось запланировать.\nПроверьте разрешения в настройках устройства.');
-    }
-    
-    setShowAddHabit(false);
-    setEditingHabit(null);
-  } catch (error) {
-    console.error('Ошибка добавления привычки:', error);
-    Alert.alert('Ошибка', 'Не удалось создать привычку');
-  }
-}, [habits, saveHabits, notificationsInitialized, settings]);
+    },
+    [habits, saveHabits, notificationsInitialized, settings]
+  );
 
-  const editHabit = useCallback(async (habitData) => {
-    try {
-      console.log('Редактирование привычки:', habitData);
-      
-      // Находим старую привычку
-      const oldHabit = habits.find(h => h.id === editingHabit.id);
-      if (!oldHabit) {
-        throw new Error('Привычка не найдена');
-      }
-      
-      // Обновляем привычку с сохранением всех существующих данных
-      const updatedHabits = habits.map(habit => {
-        if (habit.id === editingHabit.id) {
-          return {
-            ...habit,
-            ...habitData,
-            // Явно сохраняем важные поля которые не должны изменяться
-            id: habit.id,
-            createdAt: habit.createdAt,
-            completions: habit.completions || {},
-            logs: habit.logs || [],
-            // Сохраняем поля уведомлений если они не переданы
-            reminderEnabled: habitData.reminderEnabled !== undefined ? habitData.reminderEnabled : habit.reminderEnabled,
-            reminderTime: habitData.reminderTime || habit.reminderTime || '09:00',
-            // Обновляем время изменения
-            updatedAt: new Date().toISOString()
-          };
+  const editHabit = useCallback(
+    async (habitData) => {
+      try {
+        console.log('Редактирование привычки:', habitData);
+
+        // Находим старую привычку
+        const oldHabit = habits.find((h) => h.id === editingHabit.id);
+        if (!oldHabit) {
+          throw new Error('Привычка не найдена');
         }
-        return habit;
-      });
-      
-      await saveHabits(updatedHabits);
-      
-      // Обновляем уведомление, если изменились настройки
-      if (notificationsInitialized) {
-        const updatedHabit = updatedHabits.find(h => h.id === editingHabit.id);
-        
-        // Используем новый метод updateHabitReminder
-        await NotificationManager.updateHabitReminder(updatedHabit, settings);
-      }
-      
-      Alert.alert('Успех!', 'Привычка обновлена');
-      setShowAddHabit(false);
-      setEditingHabit(null);
-    } catch (error) {
-      console.error('Ошибка редактирования привычки:', error);
-      Alert.alert('Ошибка', 'Не удалось обновить привычку');
-    }
-  }, [habits, editingHabit, saveHabits, notificationsInitialized, settings]);
 
-  const deleteHabit = useCallback(async (habitId) => {
-    try {
-      const habit = habits.find(h => h.id === habitId);
-      if (!habit) return;
-
-      Alert.alert(
-        'Удалить привычку?',
-        `"${habit.name}" будет удалена навсегда.`,
-        [
-          { text: 'Отмена', style: 'cancel' },
-          {
-            text: 'Удалить',
-            style: 'destructive',
-            onPress: async () => {
-              const newHabits = habits.filter(h => h.id !== habitId);
-              await saveHabits(newHabits);
-              
-              // Отменяем уведомление
-              if (notificationsInitialized) {
-                await NotificationManager.cancelHabitReminder(habitId);
-              }
-              
-              Alert.alert('Удалено', 'Привычка удалена');
-            }
+        // Обновляем привычку с сохранением всех существующих данных
+        const updatedHabits = habits.map((habit) => {
+          if (habit.id === editingHabit.id) {
+            return {
+              ...habit,
+              ...habitData,
+              // Явно сохраняем важные поля которые не должны изменяться
+              id: habit.id,
+              createdAt: habit.createdAt,
+              completions: habit.completions || {},
+              logs: habit.logs || [],
+              // Сохраняем поля уведомлений если они не переданы
+              reminderEnabled:
+                habitData.reminderEnabled !== undefined
+                  ? habitData.reminderEnabled
+                  : habit.reminderEnabled,
+              reminderTime:
+                habitData.reminderTime || habit.reminderTime || '09:00',
+              // Обновляем время изменения
+              updatedAt: new Date().toISOString(),
+            };
           }
-        ]
-      );
-    } catch (error) {
-      console.error('Ошибка удаления привычки:', error);
-      Alert.alert('Ошибка', 'Не удалось удалить привычку');
-    }
-  }, [habits, saveHabits, notificationsInitialized]);
+          return habit;
+        });
 
-  const toggleHabitCompletion = useCallback(async (habitId, date) => {
-    try {
-      console.log('toggleHabitCompletion вызван:', { habitId, date });
-      
-      const updatedHabits = habits.map(habit => {
-        if (habit.id === habitId) {
-          const completions = { ...habit.completions };
-          
-          if (habit.type === 'boolean') {
-            // Переключаем состояние
-            if (completions[date]) {
-              delete completions[date];
-              console.log('Удалено выполнение для даты:', date);
-            } else {
-              completions[date] = true;
-              console.log('Добавлено выполнение для даты:', date);
-            }
-          }
-          
-          const updatedHabit = { ...habit, completions };
-          console.log('Обновленная привычка:', updatedHabit);
-          return updatedHabit;
+        await saveHabits(updatedHabits);
+
+        // Обновляем уведомление, если изменились настройки
+        if (notificationsInitialized) {
+          const updatedHabit = updatedHabits.find(
+            (h) => h.id === editingHabit.id
+          );
+
+          // Используем новый метод updateHabitReminder
+          await NotificationManager.updateHabitReminder(updatedHabit, settings);
         }
-        return habit;
-      });
-      
-      console.log('Сохраняем новые привычки:', updatedHabits);
-      await saveHabits(updatedHabits);
-      
-    } catch (error) {
-      console.error('Ошибка переключения привычки:', error);
-      Alert.alert('Ошибка', 'Не удалось обновить привычку');
-    }
-  }, [habits, saveHabits]);
 
-  const updateHabitValue = useCallback(async (habitId, date, value) => {
-    try {
-      console.log('updateHabitValue вызван:', { habitId, date, value });
-      
-      const updatedHabits = habits.map(habit => {
-        if (habit.id === habitId) {
-          const completions = { ...habit.completions };
-          const logs = [...(habit.logs || [])];
-          
-          if (habit.type === 'weight') {
-            // Для веса - правильно обрабатываем объект с данными
-            const weightValue = typeof value === 'object' && value.weight ? value.weight : value;
-            
-            if (weightValue > 0) {
-              const completion = {
-                weight: parseFloat(weightValue),
-                timestamp: value.timestamp || new Date().toISOString(),
-                targetWeight: value.targetWeight || habit.targetWeight
-              };
-              completions[date] = completion;
-              
-              // Добавляем в логи
-              const existingLogIndex = logs.findIndex(log => log.date === date);
-              if (existingLogIndex >= 0) {
-                logs[existingLogIndex] = {
-                  ...logs[existingLogIndex],
-                  weight: parseFloat(weightValue),
-                  timestamp: completion.timestamp
-                };
+        Alert.alert('Успех!', 'Привычка обновлена');
+        setShowAddHabit(false);
+        setEditingHabit(null);
+      } catch (error) {
+        console.error('Ошибка редактирования привычки:', error);
+        Alert.alert('Ошибка', 'Не удалось обновить привычку');
+      }
+    },
+    [habits, editingHabit, saveHabits, notificationsInitialized, settings]
+  );
+
+  const deleteHabit = useCallback(
+    async (habitId) => {
+      try {
+        const habit = habits.find((h) => h.id === habitId);
+        if (!habit) return;
+
+        Alert.alert(
+          'Удалить привычку?',
+          `"${habit.name}" будет удалена навсегда.`,
+          [
+            { text: 'Отмена', style: 'cancel' },
+            {
+              text: 'Удалить',
+              style: 'destructive',
+              onPress: async () => {
+                const newHabits = habits.filter((h) => h.id !== habitId);
+                await saveHabits(newHabits);
+
+                // Отменяем уведомление
+                if (notificationsInitialized) {
+                  await NotificationManager.cancelHabitReminder(habitId);
+                }
+
+                Alert.alert('Удалено', 'Привычка удалена');
+              },
+            },
+          ]
+        );
+      } catch (error) {
+        console.error('Ошибка удаления привычки:', error);
+        Alert.alert('Ошибка', 'Не удалось удалить привычку');
+      }
+    },
+    [habits, saveHabits, notificationsInitialized]
+  );
+
+  const toggleHabitCompletion = useCallback(
+    async (habitId, date) => {
+      try {
+        console.log('toggleHabitCompletion вызван:', { habitId, date });
+
+        const updatedHabits = habits.map((habit) => {
+          if (habit.id === habitId) {
+            const completions = { ...habit.completions };
+
+            if (habit.type === 'boolean') {
+              // Переключаем состояние
+              if (completions[date]) {
+                delete completions[date];
+                console.log('Удалено выполнение для даты:', date);
               } else {
-                logs.push({
-                  date,
-                  weight: parseFloat(weightValue),
-                  timestamp: completion.timestamp
-                });
+                completions[date] = true;
+                console.log('Добавлено выполнение для даты:', date);
               }
-              
-              console.log('Добавлен вес:', completion);
-            } else {
-              delete completions[date];
-              // Удаляем из логов
-              const logIndex = logs.findIndex(log => log.date === date);
-              if (logIndex >= 0) {
-                logs.splice(logIndex, 1);
-              }
-              console.log('Удален вес для даты:', date);
             }
-          } else if (habit.type === 'quantitative' || habit.type === 'number') {
-            // Для количественных привычек
-            if (value > 0) {
-              const completion = {
-                value: value,
-                completed: value >= (habit.targetValue || 1),
-                timestamp: new Date().toISOString()
-              };
-              completions[date] = completion;
-              console.log('Создано выполнение:', completion);
-            } else {
-              delete completions[date];
-              console.log('Удалено выполнение для даты:', date);
-            }
+
+            const updatedHabit = { ...habit, completions };
+            console.log('Обновленная привычка:', updatedHabit);
+            return updatedHabit;
           }
-          
-          const updatedHabit = { ...habit, completions, logs };
-          console.log('Обновленная привычка:', updatedHabit);
-          return updatedHabit;
-        }
-        return habit;
-      });
-      
-      console.log('Сохраняем новые привычки:', updatedHabits);
-      await saveHabits(updatedHabits);
-      
-    } catch (error) {
-      console.error('Ошибка обновления значения привычки:', error);
-      Alert.alert('Ошибка', 'Не удалось обновить значение привычки');
-    }
-  }, [habits, saveHabits]);
+          return habit;
+        });
 
+        console.log('Сохраняем новые привычки:', updatedHabits);
+        await saveHabits(updatedHabits);
+      } catch (error) {
+        console.error('Ошибка переключения привычки:', error);
+        Alert.alert('Ошибка', 'Не удалось обновить привычку');
+      }
+    },
+    [habits, saveHabits]
+  );
 
- /*
+  const updateHabitValue = useCallback(
+    async (habitId, date, value) => {
+      try {
+        console.log('updateHabitValue вызван:', { habitId, date, value });
+
+        const updatedHabits = habits.map((habit) => {
+          if (habit.id === habitId) {
+            const completions = { ...habit.completions };
+            const logs = [...(habit.logs || [])];
+
+            if (habit.type === 'weight') {
+              // Для веса - правильно обрабатываем объект с данными
+              const weightValue =
+                typeof value === 'object' && value.weight
+                  ? value.weight
+                  : value;
+
+              if (weightValue > 0) {
+                const completion = {
+                  weight: parseFloat(weightValue),
+                  timestamp: value.timestamp || new Date().toISOString(),
+                  targetWeight: value.targetWeight || habit.targetWeight,
+                };
+                completions[date] = completion;
+
+                // Добавляем в логи
+                const existingLogIndex = logs.findIndex(
+                  (log) => log.date === date
+                );
+                if (existingLogIndex >= 0) {
+                  logs[existingLogIndex] = {
+                    ...logs[existingLogIndex],
+                    weight: parseFloat(weightValue),
+                    timestamp: completion.timestamp,
+                  };
+                } else {
+                  logs.push({
+                    date,
+                    weight: parseFloat(weightValue),
+                    timestamp: completion.timestamp,
+                  });
+                }
+
+                console.log('Добавлен вес:', completion);
+              } else {
+                delete completions[date];
+                // Удаляем из логов
+                const logIndex = logs.findIndex((log) => log.date === date);
+                if (logIndex >= 0) {
+                  logs.splice(logIndex, 1);
+                }
+                console.log('Удален вес для даты:', date);
+              }
+            } else if (
+              habit.type === 'quantitative' ||
+              habit.type === 'number'
+            ) {
+              // Для количественных привычек
+              if (value > 0) {
+                const completion = {
+                  value: value,
+                  completed: value >= (habit.targetValue || 1),
+                  timestamp: new Date().toISOString(),
+                };
+                completions[date] = completion;
+                console.log('Создано выполнение:', completion);
+              } else {
+                delete completions[date];
+                console.log('Удалено выполнение для даты:', date);
+              }
+            }
+
+            const updatedHabit = { ...habit, completions, logs };
+            console.log('Обновленная привычка:', updatedHabit);
+            return updatedHabit;
+          }
+          return habit;
+        });
+
+        console.log('Сохраняем новые привычки:', updatedHabits);
+        await saveHabits(updatedHabits);
+      } catch (error) {
+        console.error('Ошибка обновления значения привычки:', error);
+        Alert.alert('Ошибка', 'Не удалось обновить значение привычки');
+      }
+    },
+    [habits, saveHabits]
+  );
+
+  /*
   // ОБНОВЛЕННАЯ ФУНКЦИЯ unlockAchievement С УВЕДОМЛЕНИЯМИ
   const unlockAchievement = useCallback(async (achievement) => {
     try {
@@ -882,13 +943,13 @@ if (notificationsInitialized && settings.notifications?.achievement) {
   const handleFormSave = async (habitData) => {
     try {
       console.log('Получены данные формы:', habitData);
-      
+
       if (editingHabit) {
         await editHabit(habitData);
       } else {
         await addHabit(habitData);
       }
-      
+
       console.log('Привычка успешно сохранена');
     } catch (error) {
       console.error('Ошибка в handleFormSave:', error);
@@ -902,62 +963,62 @@ if (notificationsInitialized && settings.notifications?.achievement) {
 
   // === РЕНДЕР ЗАСТАВКИ ===
   const renderSplashScreen = () => (
-    <Animated.View 
+    <Animated.View
       style={[
         styles.splashContainer,
-        { 
+        {
           backgroundColor: colors.primary,
-          opacity: splashAnim
-        }
-      ]}
-    >
+          opacity: splashAnim,
+        },
+      ]}>
       <View style={styles.splashContent}>
-        <Animated.View 
+        <Animated.View
           style={[
             styles.splashLogo,
             {
-              transform: [{
-                scale: splashAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.8, 1]
-                })
-              }]
-            }
-          ]}
-        >
+              transform: [
+                {
+                  scale: splashAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.8, 1],
+                  }),
+                },
+              ],
+            },
+          ]}>
           <View style={styles.logoIcon}>
             <Text style={styles.logoEmoji}>✓</Text>
           </View>
         </Animated.View>
-        
-        <Animated.Text 
+
+        <Animated.Text
           style={[
             styles.splashTitle,
             {
               opacity: splashAnim,
-              transform: [{
-                translateY: splashAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [20, 0]
-                })
-              }]
-            }
-          ]}
-        >
+              transform: [
+                {
+                  translateY: splashAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [20, 0],
+                  }),
+                },
+              ],
+            },
+          ]}>
           Трекер Привычек
         </Animated.Text>
-        
-        <Animated.Text 
+
+        <Animated.Text
           style={[
             styles.splashSubtitle,
             {
               opacity: splashAnim.interpolate({
                 inputRange: [0, 1],
-                outputRange: [0, 0.8]
-              })
-            }
-          ]}
-        >
+                outputRange: [0, 0.8],
+              }),
+            },
+          ]}>
           Простые, количественные привычки и отслеживание веса
         </Animated.Text>
       </View>
@@ -972,23 +1033,24 @@ if (notificationsInitialized && settings.notifications?.achievement) {
         backgroundColor={colors.background}
         translucent={false}
       />
-      
+
       {/* Основное приложение */}
       {!isReady ? null : (
-        <Animated.View 
+        <Animated.View
           style={[
             styles.appContainer,
             {
               opacity: appAnim,
-              transform: [{
-                scale: appAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.95, 1]
-                })
-              }]
-            }
-          ]}
-        >
+              transform: [
+                {
+                  scale: appAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.95, 1],
+                  }),
+                },
+              ],
+            },
+          ]}>
           <MainApp
             habits={habits}
             archivedHabits={archivedHabits}
@@ -1014,10 +1076,10 @@ if (notificationsInitialized && settings.notifications?.achievement) {
           />
         </Animated.View>
       )}
-      
+
       {/* Заставка */}
       {!isReady && renderSplashScreen()}
-      
+
       {/* Модальные окна */}
       <HabitFormModal
         visible={showAddHabit}
@@ -1027,7 +1089,7 @@ if (notificationsInitialized && settings.notifications?.achievement) {
         theme={settings.theme}
         isDarkMode={settings.isDarkMode}
       />
-      
+
       <SettingsScreen
         visible={showSettings}
         onClose={() => setShowSettings(false)}
@@ -1052,11 +1114,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  
+
   appContainer: {
     flex: 1,
   },
-  
+
   // === ЗАСТАВКА ===
   splashContainer: {
     position: 'absolute',
@@ -1068,15 +1130,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 1000,
   },
-  
+
   splashContent: {
     alignItems: 'center',
   },
-  
+
   splashLogo: {
     marginBottom: 32,
   },
-  
+
   logoIcon: {
     width: 120,
     height: 120,
@@ -1087,13 +1149,13 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
-  
+
   logoEmoji: {
     fontSize: 48,
     color: '#ffffff',
     fontWeight: 'bold',
   },
-  
+
   splashTitle: {
     fontSize: 32,
     fontWeight: 'bold',
@@ -1101,7 +1163,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     textAlign: 'center',
   },
-  
+
   splashSubtitle: {
     fontSize: 16,
     color: '#ffffff',

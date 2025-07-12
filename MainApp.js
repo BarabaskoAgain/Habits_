@@ -259,7 +259,14 @@ const MainApp = ({
                     onArchive={(habitId) => {
                       console.log('🎯 MainApp: onArchive вызван с ID:', habitId);
                       console.log('🎯 MainApp: onHabitArchive тип:', typeof onHabitArchive);
-                      onHabitArchive(habitId);
+                      console.log('🎯 MainApp: onHabitArchive функция:', onHabitArchive);
+                      try {
+                        onHabitArchive(habitId);
+                        console.log('🎯 MainApp: onHabitArchive успешно вызван');
+                      } catch (error) {
+                        console.error('🎯 MainApp: Ошибка вызова onHabitArchive:', error);
+                        Alert.alert('Ошибка MainApp', 'Не удалось вызвать функцию архивирования: ' + error.message);
+                      }
                     }}
                     theme={settings.theme}
                     isDarkMode={settings.isDarkMode}

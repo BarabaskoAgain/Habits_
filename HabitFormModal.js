@@ -264,7 +264,7 @@ if (completedFields.has('description')) {
   useEffect(() => {
     if (isTyping && currentCharIndex < fullText.length) {
       // Разная скорость для создания и редактирования
-      const typingSpeed = habit ? 1 : 15; // 1мс для редактирования, 30мс для создания
+      const typingSpeed = habit ? 0.2 : 10; // 1мс для редактирования, 30мс для создания
       
       const timeout = setTimeout(() => {
         setDisplayedText(prev => prev + fullText[currentCharIndex]);

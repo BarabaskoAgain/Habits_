@@ -156,6 +156,13 @@ displayValue = `${currentValue} / ${targetValue} ${unitLabel}`;
   const handleArchive = () => {
     console.log('🗂️ HabitCard: handleArchive вызван для привычки:', habit.name, 'ID:', habit.id);
     console.log('🗂️ HabitCard: onArchive тип:', typeof onArchive);
+    console.log('🗂️ HabitCard: onArchive функция существует?', !!onArchive);
+    
+    if (!onArchive || typeof onArchive !== 'function') {
+      console.error('🗂️ HabitCard: onArchive не является функцией!');
+      Alert.alert('Ошибка', 'Функция архивирования недоступна');
+      return;
+    }
     
     console.log('🗂️ HabitCard: Показываем Alert.alert...');
     
@@ -179,14 +186,15 @@ displayValue = `${currentValue} / ${targetValue} ${unitLabel}`;
               console.log('🗂️ HabitCard: Передаем ID:', habit.id);
               
               try {
-                onArchive(habit.id);
-                console.log('🗂️ HabitCard: onArchive успешно вызван');
+                const result = onArchive(habit.id);
+                console.log('🗂️ HabitCard: onArchive успешно вызван, результат:', result);
               } catch (error) {
                 console.error('🗂️ HabitCard: Ошибка при вызове onArchive:', error);
+                Alert.alert('Ошибка HabitCard', 'Не удалось архивировать привычку: ' + error.message);
               }
               
               setShowActions(false);
-              console.log('🗂️ HabitCard: onArchive вызван, меню действий закрыто');
+              console.log('🗂️ HabitCard: Меню действий закрыто');
             }
           }
         ]
@@ -194,6 +202,7 @@ displayValue = `${currentValue} / ${targetValue} ${unitLabel}`;
       console.log('🗂️ HabitCard: Alert.alert успешно вызван');
     } catch (error) {
       console.error('🗂️ HabitCard: Ошибка при показе Alert.alert:', error);
+      Alert.alert('Ошибка', 'Не удалось показать диалог архивирования: ' + error.message);
     }
   };
 
