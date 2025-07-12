@@ -1131,24 +1131,104 @@ const fieldsOrder = ['name', 'description', 'category', 'type', 'weightGoal', 'd
               <Text style={[styles.selectorTitle, { color: colors.text }]}>
                 Время напоминания
               </Text>
-              <TextInput
-                style={[
-                  styles.timeInput,
-                  {
-                    backgroundColor: colors.background,
-                    borderColor: colors.border,
-                    color: colors.text
-                  }
-                ]}
-                value={formData.reminderTime}
-                onChangeText={(text) => setFormData({ ...formData, reminderTime: text })}
-                placeholder="Например: 09:00"
-                placeholderTextColor={colors.textSecondary}
-                autoFocus
-              />
+              
+              <View style={styles.timePickerContainer}>
+                {/* Часы */}
+                <View style={styles.timePickerColumn}>
+                  <Text style={[styles.timePickerLabel, { color: colors.textSecondary }]}>Часы</Text>
+                  <ScrollView 
+                    style={styles.timePickerScroll}
+                    showsVerticalScrollIndicator={false}
+                    snapToInterval={40}
+                    decelerationRate="fast"
+                  >
+                    {Array.from({ length: 24 }, (_, i) => (
+                      <TouchableOpacity
+                        key={i}
+                        style={[
+                          styles.timePickerItem,
+                          {
+                            backgroundColor: parseInt(formData.reminderTime.split(':')[0]) === i ? 
+                              colors.primary : 'transparent'
+                          }
+                        ]}
+                        onPress={() => {
+                          const minutes = formData.reminderTime.split(':')[1] || '0';
+                          setFormData({ 
+                            ...formData, 
+                            reminderTime: `${i.toString().padStart(2, '0')}:${minutes}` 
+                          });
+                        }}
+                      >
+                        <Text style={[
+                          styles.timePickerItemText,
+                          { 
+                            color: parseInt(formData.reminderTime.split(':')[0]) === i ? 
+                              '#ffffff' : colors.text,
+                            fontWeight: parseInt(formData.reminderTime.split(':')[0]) === i ? 
+                              'bold' : 'normal'
+                          }
+                        ]}>
+                          {i.toString().padStart(2, '0')}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+                
+                <Text style={[styles.timePickerSeparator, { color: colors.text }]}>:</Text>
+                
+                {/* Минуты */}
+                <View style={styles.timePickerColumn}>
+                  <Text style={[styles.timePickerLabel, { color: colors.textSecondary }]}>Минуты</Text>
+                  <ScrollView 
+                    style={styles.timePickerScroll}
+                    showsVerticalScrollIndicator={false}
+                    snapToInterval={40}
+                    decelerationRate="fast"
+                  >
+                    {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map(i => (
+                      <TouchableOpacity
+                        key={i}
+                        style={[
+                          styles.timePickerItem,
+                          {
+                            backgroundColor: parseInt(formData.reminderTime.split(':')[1]) === i ? 
+                              colors.primary : 'transparent'
+                          }
+                        ]}
+                        onPress={() => {
+                          const hours = formData.reminderTime.split(':')[0] || '09';
+                          setFormData({ 
+                            ...formData, 
+                            reminderTime: `${hours}:${i.toString().padStart(2, '0')}` 
+                          });
+                        }}
+                      >
+                        <Text style={[
+                          styles.timePickerItemText,
+                          { 
+                            color: parseInt(formData.reminderTime.split(':')[1]) === i ? 
+                              '#ffffff' : colors.text,
+                            fontWeight: parseInt(formData.reminderTime.split(':')[1]) === i ? 
+                              'bold' : 'normal'
+                          }
+                        ]}>
+                          {i.toString().padStart(2, '0')}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </View>
+              
+              <Text style={[styles.selectedTimePreview, { color: colors.text }]}>
+                Выбрано: {formData.reminderTime}
+              </Text>
+              
               <TouchableOpacity
                 style={[styles.selectorButton, { backgroundColor: colors.primary }]}
-                onPress={() => formData.reminderTime && handleFieldSelect(formData.reminderTime)}
+                onPress={() => handleFieldSelect(formData.reminderTime)}
               >
                 <Text style={styles.selectorButtonText}>Готово</Text>
               </TouchableOpacity>
@@ -1664,16 +1744,55 @@ selectorSubtitle: {
     fontSize: 24,
   },
   
-  // Время
-  timeInput: {
-    borderWidth: 1,
-    borderRadius: BORDER_RADIUS.md,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
-    ...TYPOGRAPHY.body,
-    fontSize: 24,
-    textAlign: 'center',
+// === НОВЫЕ СТИЛИ ДЛЯ ВЫБОРА ВРЕМЕНИ ===
+  timePickerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 200,
+    marginVertical: SPACING.md,
+  },
+  
+  timePickerColumn: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  
+  timePickerLabel: {
+    fontSize: 12,
     fontWeight: '600',
+    marginBottom: SPACING.sm,
+    textTransform: 'uppercase',
+  },
+  
+  timePickerScroll: {
+    height: 160,
+    width: 80,
+  },
+  
+  timePickerItem: {
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 2,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  
+  timePickerItemText: {
+    fontSize: 18,
+  },
+  
+  timePickerSeparator: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginHorizontal: SPACING.md,
+  },
+  
+  selectedTimePreview: {
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: SPACING.md,
   },
   
   // Цели веса
