@@ -226,56 +226,7 @@ dates.push(dateUtils.formatDateLocal(currentDate));
 
 // === УТИЛИТЫ ДЛЯ СТАТИСТИКИ ===
 export const statsUtils = {
-  getStreak: (habit) => {
-  try {
-    if (!habit || !habit.completions) return 0;
 
-    const completions = habit.completions;
-    const today = new Date();
-    let streak = 0;
-    let date = new Date(today);
-
-    // Сначала ищем последний день, когда привычка была выполнена
-    for (let i = 0; i < 365; i++) {
-      const dateStr = dateUtils.formatDateLocal(date);
-      const completion = completions[dateStr];
-
-      let done = false;
-      if (habit.type === 'boolean') {
-        done = completion === true;
-      } else if (habit.type === 'weight' || habit.type === 'number') {
-        done = !!completion;
-      }
-
-      if (done) {
-        // Нашли последнюю выполненную дату — теперь идём назад и считаем стрик
-        for (let j = 0; j <= i; j++) {
-          const checkDate = new Date(today);
-          checkDate.setDate(today.getDate() - j);
-          const checkDateStr = dateUtils.formatDateLocal(checkDate);
-          const checkCompletion = completions[checkDateStr];
-
-          let checkDone = false;
-          if (habit.type === 'boolean') {
-            checkDone = checkCompletion === true;
-          } else if (habit.type === 'weight' || habit.type === 'number') {
-            checkDone = !!checkCompletion;
-          }
-
-          if (checkDone) {
-            streak += 1;
-          } else {
-            // Если пропуск — streak прерывается
-            break;
-          }
-        }
-        return streak;
-      }
-      // Идём к предыдущему дню
-      date.setDate(date.getDate() - 1);
-    }
-    return 0;
-  } catch (e) {
     return 0;
   }
 },
