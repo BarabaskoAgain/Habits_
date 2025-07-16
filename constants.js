@@ -223,6 +223,11 @@ export const DEFAULT_SETTINGS = {
     achievement: true,
     streak: true
   },
+  buttonAnimation: {
+    enabled: true,
+    color: 'primary',
+    speed: 1
+  },
   weight: {
     unit: 'kg', // kg или lbs
     showBMI: false,
