@@ -226,73 +226,7 @@ dates.push(dateUtils.formatDateLocal(currentDate));
 
 // === УТИЛИТЫ ДЛЯ СТАТИСТИКИ ===
 export const statsUtils = {
-// === УЛУЧШЕННАЯ ФУНКЦИЯ GETSTREAK ===
-// Решает проблемы:
-// 1. Стрик больше 365 дней (до 1000+)
-// 2. Стрик сохраняется в течение дня, пока не выполнил
-// 3. Корректная работа с новыми привычками
 
-getStreak: (habit) => {
-  try {
-    // БЛОК 1: Проверка входных данных
-    if (!habit || !habit.completions) return 0;
-
-    // БЛОК 2: Подготовка переменных
-    const today = dateUtils.today();
-    const todayDate = new Date(today);
-    let baseStreak = 0; // Базовый стрик (без сегодняшнего дня)
-
-    // БЛОК 3: Считаем базовый стрик начиная со ВЧЕРА
-    // Это позволяет сохранить стрик в течение сегодняшнего дня
-    for (let i = -1; i >= -1000; i--) { // Увеличили лимит до 1000 дней
-      const checkDate = new Date(todayDate);
-      checkDate.setDate(todayDate.getDate() + i);
-      const dateString = dateUtils.formatDateLocal(checkDate);
-
-      const completion = habit.completions[dateString];
-      let isCompleted = false;
-
-      // БЛОК 4: Проверка типа привычки и выполнения (БЕЗ ИЗМЕНЕНИЙ)
-      if (habit.type === 'boolean') {
-        isCompleted = completion === true;
-      } else if (habit.type === 'weight') {
-        isCompleted = completion && typeof completion === 'object' && completion.weight > 0;
-      } else if (habit.type === 'number') {
-        isCompleted = completion && completion.completed === true;
-      }
-
-      // БЛОК 5: Подсчет базового стрика
-      if (isCompleted) {
-        baseStreak++;
-      } else {
-        break; // Прерываем при первом невыполненном дне
-      }
-    }
-
-    // БЛОК 6: НОВАЯ ЛОГИКА - Проверяем сегодняшний день
-    const todayCompletion = habit.completions[today];
-    let isTodayCompleted = false;
-
-    if (habit.type === 'boolean') {
-      isTodayCompleted = todayCompletion === true;
-    } else if (habit.type === 'weight') {
-      isTodayCompleted = todayCompletion && typeof todayCompletion === 'object' && todayCompletion.weight > 0;
-    } else if (habit.type === 'number') {
-      isTodayCompleted = todayCompletion && todayCompletion.completed === true;
-    }
-
-    // БЛОК 7: Финальный расчет стрика
-    if (isTodayCompleted) {
-      // Сегодня выполнено - добавляем +1 к базовому стрику
-      return baseStreak + 1;
-    } else {
-      // Сегодня НЕ выполнено - возвращаем базовый стрик
-      // Это дает пользователю время до конца дня
-      return baseStreak;
-    }
-
-  } catch (error) {
-    console.error('Ошибка вычисления серии:', error);
     return 0;
   }
 },

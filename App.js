@@ -106,6 +106,8 @@ const AppContent = () => {
     };
   }, []);
 
+
+  /*
   // Проверка достижений
   const checkForNewAchievements = useCallback(async () => {
     try {
@@ -147,6 +149,8 @@ const AppContent = () => {
     }
   }, [habits, achievements, isReady]);
 
+
+
   // === ФУНКЦИИ СОХРАНЕНИЯ ===
   const saveAchievements = useCallback(async (newAchievements) => {
     try {
@@ -160,6 +164,7 @@ const AppContent = () => {
       console.error('Ошибка сохранения достижений:', error);
     }
   }, []);
+  */
 
   const saveHabits = useCallback(
     async (newHabits) => {
@@ -433,6 +438,7 @@ const archiveHabit = useCallback(async (habitId) => {
     }
   }, [saveHabits]);
 
+  /*
   const loadAchievements = useCallback(async () => {
     try {
       const stored = await AsyncStorage.getItem(STORAGE_KEYS.achievements);
@@ -448,6 +454,8 @@ const archiveHabit = useCallback(async (habitId) => {
       return [];
     }
   }, []);
+
+  */
 
   const loadSettings = useCallback(async () => {
     try {
