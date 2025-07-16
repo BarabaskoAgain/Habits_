@@ -1,6 +1,7 @@
 // ====================================
 // УТИЛИТЫ С ПОДДЕРЖКОЙ ВЕСА
 // src/constants/utils.js
+//Новая версия
 // ====================================
 
 export const MOTIVATIONAL_QUOTES = [
@@ -226,6 +227,7 @@ dates.push(dateUtils.formatDateLocal(currentDate));
 
 // === УТИЛИТЫ ДЛЯ СТАТИСТИКИ ===
 export const statsUtils = {
+ Testing-Core1
 // === УЛУЧШЕННАЯ ФУНКЦИЯ GETSTREAK ===
 // Решает проблемы:
 // 1. Стрик больше 365 дней (до 1000+)
@@ -293,6 +295,9 @@ getStreak: (habit) => {
 
   } catch (error) {
     console.error('Ошибка вычисления серии:', error);
+
+
+
     return 0;
   }
 },
