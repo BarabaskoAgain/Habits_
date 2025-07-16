@@ -3,7 +3,7 @@
 // MainApp.js - С КНОПКОЙ АРХИВА В HEADER И ПОДДЕРЖКОЙ АРХИВИРОВАНИЯ
 // ====================================
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,9 @@ import {
   ScrollView,
   RefreshControl,
   StyleSheet,
-  Platform
+  Platform,
+  Animated,
+  Vibration
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -20,6 +22,101 @@ import StatisticsScreen from './StatisticsScreen';
 import ArchiveScreen from './ArchiveScreen';
 import { THEMES, SPACING, BORDER_RADIUS, TYPOGRAPHY, DEFAULT_SETTINGS } from './constants';
 import { dateUtils } from './utils';
+
+// === АНИМИРОВАННАЯ КНОПКА ДОБАВЛЕНИЯ ===
+const AnimatedAddButton = ({ onPress, colors }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const colorAnim = useRef(new Animated.Value(0)).current;
+
+  // Медленное переливание цветов
+  useEffect(() => {
+    const colorAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(colorAnim, {
+          toValue: 1,
+          duration: 9000, // 3 секунды в одну сторону
+          useNativeDriver: false, // Для цветов нужен false
+        }),
+        Animated.timing(colorAnim, {
+          toValue: 0,
+          duration: 3000, // 3 секунды обратно
+          useNativeDriver: false,
+        }),
+      ])
+    );
+
+    colorAnimation.start();
+
+    return () => colorAnimation.stop();
+  }, []);
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.95,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePress = () => {
+    if (Platform.OS === 'ios') {
+      Vibration.vibrate(10);
+    }
+    onPress();
+  };
+
+  // Создаем более светлый и более темный оттенки
+  const lighterColor = colors.primary + '20'; // Более светлый
+  const darkerColor = colors.primary; // Основной цвет
+
+  // Интерполяция цвета
+  const animatedBackgroundColor = colorAnim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [darkerColor, lighterColor, darkerColor],
+  });
+
+  const animatedShadowColor = colorAnim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [colors.primary + '40', colors.primary + '60', colors.primary + '40'],
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.animatedAddButton,
+        {
+          transform: [{ scale: scaleAnim }]
+        }
+      ]}
+    >
+      <Animated.View
+        style={[
+          styles.addButtonContent,
+          {
+            backgroundColor: animatedBackgroundColor,
+            shadowColor: animatedShadowColor,
+          }
+        ]}
+      >
+        <TouchableOpacity
+          style={styles.addButtonTouch}
+          onPress={handlePress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={20} color="#ffffff" />
+        </TouchableOpacity>
+      </Animated.View>
+    </Animated.View>
+  );
+};
 
 const MainApp = ({
   habits = [],
@@ -130,7 +227,7 @@ const MainApp = ({
           </View>
         </View>
         
-        <View style={styles.headerButtons}>
+<View style={styles.headerButtons}>
           {activeTab === 'archive' ? (
             /* КНОПКА НАЗАД В АРХИВЕ */
             <TouchableOpacity
@@ -141,6 +238,12 @@ const MainApp = ({
             </TouchableOpacity>
           ) : (
             <>
+              {/* АНИМИРОВАННАЯ КНОПКА ДОБАВЛЕНИЯ */}
+              <AnimatedAddButton
+                onPress={onShowAddHabit}
+                colors={colors}
+              />
+
               {/* КНОПКА АРХИВА */}
               <TouchableOpacity
                 style={[styles.archiveButton, { backgroundColor: colors.surface }]}
@@ -309,20 +412,6 @@ const MainApp = ({
     }
   };
 
-  // === FAB ===
-  const renderFAB = () => {
-    if (activeTab !== 'home') return null;
-    
-    return (
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.primary }]}
-        onPress={onShowAddHabit}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="add" size={28} color="#ffffff" />
-      </TouchableOpacity>
-    );
-  };
 
   // === TAB BAR ===
   const renderTabBar = () => (
@@ -382,7 +471,7 @@ const MainApp = ({
       {/* Показываем заголовок только если НЕ архив */}
       {activeTab !== 'archive' && renderHeader()}
       {renderContent()}
-      {renderFAB()}
+
       {activeTab !== 'archive' && renderTabBar()}
     </View>
   );
@@ -583,23 +672,31 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     marginTop: SPACING.xs,
   },
-  
-  // === FAB ===
-  fab: {
-    position: 'absolute',
-    right: SPACING.lg,
-    bottom: 80,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+
+   // === АНИМИРОВАННАЯ КНОПКА ДОБАВЛЕНИЯ ===
+    animatedAddButton: {
+      marginRight: 0,
+    },
+
+  addButtonTouch: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
   },
+
+
+    addButtonContent: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    elevation: 6,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    },
+
 });
 
 export default MainApp;
