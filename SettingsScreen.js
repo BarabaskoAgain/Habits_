@@ -33,7 +33,9 @@ const SettingsScreen = ({
   habits,
   achievements
 }) => {
-  const [showThemeSelector, setShowThemeSelector] = useState(false);
+     const [showThemeSelector, setShowThemeSelector] = useState(false);
+     const [showColorSelector, setShowColorSelector] = useState(false);
+     const [showSpeedSelector, setShowSpeedSelector] = useState(false);
 
   const colors = THEMES[settings.theme][settings.isDarkMode ? 'dark' : 'light'];
 
@@ -55,6 +57,36 @@ const SettingsScreen = ({
       }
     };
     onSettingsChange(newSettings);
+  };
+
+  const updateButtonAnimationSetting = (key, value) => {
+    const newSettings = {
+      ...settings,
+      buttonAnimation: {
+        ...settings.buttonAnimation,
+        [key]: value
+      }
+    };
+    onSettingsChange(newSettings);
+  };
+
+  const formatSpeedLabel = (speed) => {
+    if (speed >= 1) {
+      return `${speed}x`;
+    } else {
+      return `${speed}x`;
+    }
+  };
+
+  const getColorLabel = (colorKey) => {
+    const colorLabels = {
+      primary: 'Основной',
+      secondary: 'Дополнительный',
+      success: 'Успех',
+      warning: 'Предупреждение',
+      error: 'Ошибка'
+    };
+    return colorLabels[colorKey] || 'Основной';
   };
 
   // === УПРОЩЕННЫЙ ЭКСПОРТ ===
@@ -214,6 +246,8 @@ const SettingsScreen = ({
     </Modal>
   );
 
+
+
   const getThemeDescription = (themeKey) => {
     const descriptions = {
       blue: 'Классическая синяя тема',
@@ -224,6 +258,123 @@ const SettingsScreen = ({
     };
     return descriptions[themeKey] || 'Красивая цветовая схема';
   };
+
+  // === СЕЛЕКТОР ЦВЕТА КНОПКИ ===
+  const renderColorSelector = () => (
+    <Modal
+      visible={showColorSelector}
+      animationType="slide"
+      presentationStyle="pageSheet"
+    >
+      <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+        <View style={[styles.modalHeader, { borderColor: colors.border }]}>
+          <TouchableOpacity onPress={() => setShowColorSelector(false)}>
+            <Ionicons name="close" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>
+            Цвет кнопки
+          </Text>
+          <View style={{ width: 24 }} />
+        </View>
+
+        <ScrollView style={styles.content}>
+          {[
+            { key: 'primary', label: 'Основной', color: colors.primary },
+            { key: 'secondary', label: 'Дополнительный', color: colors.secondary },
+            { key: 'success', label: 'Успех', color: colors.success },
+            { key: 'warning', label: 'Предупреждение', color: colors.warning },
+            { key: 'error', label: 'Ошибка', color: colors.error }
+          ].map((colorOption) => (
+            <TouchableOpacity
+              key={colorOption.key}
+              style={[
+                styles.colorOption,
+                {
+                  borderColor: (settings.buttonAnimation?.color || 'primary') === colorOption.key ?
+                    colors.primary : colors.border
+                }
+              ]}
+              onPress={() => {
+                updateButtonAnimationSetting('color', colorOption.key);
+                setShowColorSelector(false);
+              }}
+            >
+              <View style={[styles.colorPreview, { backgroundColor: colorOption.color }]} />
+              <Text style={[styles.colorLabel, { color: colors.text }]}>
+                {colorOption.label}
+              </Text>
+              {(settings.buttonAnimation?.color || 'primary') === colorOption.key && (
+                <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+              )}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+  );
+
+  // === СЕЛЕКТОР СКОРОСТИ АНИМАЦИИ ===
+  const renderSpeedSelector = () => (
+    <Modal
+      visible={showSpeedSelector}
+      animationType="slide"
+      presentationStyle="pageSheet"
+    >
+      <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+        <View style={[styles.modalHeader, { borderColor: colors.border }]}>
+          <TouchableOpacity onPress={() => setShowSpeedSelector(false)}>
+            <Ionicons name="close" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>
+            Скорость анимации
+          </Text>
+          <View style={{ width: 24 }} />
+        </View>
+
+        <ScrollView style={styles.content}>
+          {[
+            { speed: 0.2, label: 'Очень медленно', description: '15 сек цикл' },
+            { speed: 0.5, label: 'Медленно', description: '6 сек цикл' },
+            { speed: 1, label: 'Обычно', description: '3 сек цикл' },
+            { speed: 1.5, label: 'Быстро', description: '2 сек цикл' },
+            { speed: 2, label: 'Очень быстро', description: '1.5 сек цикл' },
+            { speed: 3, label: 'Стремительно', description: '1 сек цикл' },
+            { speed: 4, label: 'Максимально', description: '0.75 сек цикл' }
+          ].map((speedOption) => (
+            <TouchableOpacity
+              key={speedOption.speed}
+              style={[
+                styles.speedOption,
+                {
+                  borderColor: (settings.buttonAnimation?.speed || 1) === speedOption.speed ?
+                    colors.primary : colors.border
+                }
+              ]}
+              onPress={() => {
+                updateButtonAnimationSetting('speed', speedOption.speed);
+                setShowSpeedSelector(false);
+              }}
+            >
+              <View style={styles.speedInfo}>
+                <Text style={[styles.speedLabel, { color: colors.text }]}>
+                  {speedOption.label}
+                </Text>
+                <Text style={[styles.speedDescription, { color: colors.textSecondary }]}>
+                  {speedOption.description}
+                </Text>
+              </View>
+              <Text style={[styles.speedValue, { color: colors.primary }]}>
+                {formatSpeedLabel(speedOption.speed)}
+              </Text>
+              {(settings.buttonAnimation?.speed || 1) === speedOption.speed && (
+                <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+              )}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+  );
 
   
 
@@ -247,25 +398,60 @@ const SettingsScreen = ({
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Основные настройки */}
-          {renderSection('Оформление', (
-            <>
-              {renderSettingItem({
-                title: 'Темная тема',
-                subtitle: 'Переключить между светлой и темной темой',
-                value: settings.isDarkMode,
-                onToggle: (value) => updateSetting('isDarkMode', value)
-              })}
+   {/* Основные настройки */}
+             {renderSection('Оформление', (
+               <>
+                 {renderSettingItem({
+                   title: 'Темная тема',
+                   subtitle: 'Переключить между светлой и темной темой',
+                   value: settings.isDarkMode,
+                   onToggle: (value) => updateSetting('isDarkMode', value)
+                 })}
 
-              {renderSettingItem({
-                title: 'Цветовая схема',
-                subtitle: `Текущая: ${settings.theme}`,
-                value: '',
-                onPress: () => setShowThemeSelector(true),
-                showArrow: true
-              })}
-            </>
-          ))}
+                 {renderSettingItem({
+                   title: 'Цветовая схема',
+                   subtitle: 'Выбрать цветовую тему приложения',
+                   value: settings.theme.charAt(0).toUpperCase() + settings.theme.slice(1),
+                   onPress: () => setShowThemeSelector(true),
+                   showArrow: true
+                 })}
+               </>
+             ))}
+
+         {/* Анимация кнопки */}
+                   {renderSection('Анимация кнопки', (
+                     <>
+                       {renderSettingItem({
+                         title: 'Анимация включена',
+                         subtitle: 'Переливающиеся цвета кнопки добавления',
+                         value: settings.buttonAnimation?.enabled ?? true,
+                         onToggle: (value) => updateButtonAnimationSetting('enabled', value)
+                       })}
+
+                       {renderSettingItem({
+                         title: 'Цвет кнопки',
+                         subtitle: 'Выбрать цвет для кнопки добавления',
+                         value: getColorLabel(settings.buttonAnimation?.color || 'primary'),
+                         onPress: () => setShowColorSelector(true),
+                         showArrow: true
+                       })}
+
+                       {settings.buttonAnimation?.enabled !== false && (
+                         renderSettingItem({
+                           title: 'Скорость анимации',
+                           subtitle: `${formatSpeedLabel(settings.buttonAnimation?.speed || 1)} - ${
+                             (settings.buttonAnimation?.speed || 1) < 0.5 ? 'очень медленно' :
+                             (settings.buttonAnimation?.speed || 1) < 1 ? 'медленно' :
+                             (settings.buttonAnimation?.speed || 1) === 1 ? 'обычно' :
+                             (settings.buttonAnimation?.speed || 1) < 2 ? 'быстро' : 'очень быстро'
+                           }`,
+                           value: '',
+                           onPress: () => setShowSpeedSelector(true),
+                           showArrow: true
+                         })
+                       )}
+                     </>
+                   ))}
 
           {/* Уведомления */}
           {renderSection('Уведомления', (
@@ -375,6 +561,8 @@ const SettingsScreen = ({
         </ScrollView>
 
         {renderThemeSelector()}
+        {renderColorSelector()}
+        {renderSpeedSelector()}
       </SafeAreaView>
     </Modal>
   );
@@ -464,6 +652,61 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.h3,
     fontWeight: 'bold',
   },
+
+  // Color Selector
+  colorOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: SPACING.md,
+  },
+
+  colorPreview: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+
+  colorLabel: {
+    ...TYPOGRAPHY.body,
+    fontWeight: '500',
+    flex: 1,
+  },
+
+  // Speed Selector
+  speedOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: SPACING.md,
+  },
+
+  speedInfo: {
+    flex: 1,
+  },
+
+  speedLabel: {
+    ...TYPOGRAPHY.body,
+    fontWeight: '500',
+  },
+
+  speedDescription: {
+    ...TYPOGRAPHY.bodyMedium,
+    marginTop: SPACING.xs,
+  },
+
+  speedValue: {
+    ...TYPOGRAPHY.body,
+    fontWeight: '600',
+    marginRight: SPACING.sm,
+    fontWeight: 'bold',
+
+
+  },
   
   modalCancelButton: {
     ...TYPOGRAPHY.button,
@@ -523,6 +766,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.bodyMedium,
     marginTop: SPACING.xs,
   },
+
 });
 
 export default SettingsScreen;

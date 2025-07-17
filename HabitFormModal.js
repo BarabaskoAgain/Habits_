@@ -31,7 +31,9 @@ import {
   TYPOGRAPHY,
   HABIT_CATEGORIES,
   HABIT_ICONS,
+  HABIT_ICON_CATEGORIES,
   HABIT_COLORS,
+  HABIT_COLOR_CATEGORIES,
   HABIT_TYPES,
   MEASUREMENT_UNITS
 } from './constants';
@@ -62,6 +64,10 @@ const HabitFormModal = ({
     reminderTime: '09:00',
     reminderEnabled: true  // ДОБАВЛЕНО: поле для уведомлений
   });
+
+  // === СОСТОЯНИЕ СЛАЙДЕРА ЦВЕТОВ И ИКОНОК ===
+  const [currentColorCategory, setCurrentColorCategory] = useState(0);
+    const [currentIconCategory, setCurrentIconCategory] = useState(0);
 
   // === СОСТОЯНИЕ ТЕКСТОВОГО РЕЖИМА ===
   const [currentField, setCurrentField] = useState(null);
@@ -1072,30 +1078,107 @@ const fieldsOrder = ['name', 'description', 'category', 'type', 'weightGoal', 'd
             </View>
           )}
           
-          {/* Селектор для цвета */}
-          {currentField === 'color' && (
-            <View style={styles.selectorContent}>
-              <Text style={[styles.selectorTitle, { color: colors.text }]}>
-                Выберите цвет
-              </Text>
-              <View style={styles.colorGrid}>
-                {HABIT_COLORS.map(color => (
-                  <TouchableOpacity
-                    key={color}
-                    style={[
-                      styles.colorOption,
-                      { backgroundColor: color }
-                    ]}
-                    onPress={() => handleFieldSelect(color)}
-                  >
-                    {formData.color === color && (
-                      <Ionicons name="checkmark" size={24} color="#ffffff" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
+    {/* Селектор для цвета */}
+           {currentField === 'color' && (
+             <View style={styles.selectorContent}>
+               <Text style={[styles.selectorTitle, { color: colors.text }]}>
+                 Выберите цвет
+               </Text>
+
+               {/* Заголовок текущей категории */}
+               <View style={styles.colorSliderHeader}>
+                 <Text style={styles.colorCategoryIcon}>
+                   {Object.values(HABIT_COLOR_CATEGORIES)[currentColorCategory]?.icon}
+                 </Text>
+                 <Text style={[styles.colorSliderCategoryTitle, { color: colors.text }]}>
+                   {Object.values(HABIT_COLOR_CATEGORIES)[currentColorCategory]?.label}
+                 </Text>
+               </View>
+
+               {/* Контейнер слайдера */}
+               <View style={styles.colorSliderContainer}>
+                 {/* Стрелка влево */}
+                 <TouchableOpacity
+                   style={[
+                     styles.colorSliderArrow,
+                     {
+                       backgroundColor: colors.surface,
+                       opacity: currentColorCategory === 0 ? 0.3 : 1
+                     }
+                   ]}
+                   onPress={() => {
+                     if (currentColorCategory > 0) {
+                       setCurrentColorCategory(currentColorCategory - 1);
+                     }
+                   }}
+                   disabled={currentColorCategory === 0}
+                 >
+                   <Ionicons name="chevron-back" size={20} color={colors.text} />
+                 </TouchableOpacity>
+
+                 {/* Сетка цветов текущей категории */}
+                 <View style={styles.colorSliderContent}>
+                   <View style={styles.colorCategoryGrid}>
+                     {Object.values(HABIT_COLOR_CATEGORIES)[currentColorCategory]?.colors.map(color => (
+                       <TouchableOpacity
+                         key={color}
+                         style={[
+                           styles.colorOptionCompact,
+                           {
+                             backgroundColor: color,
+                             borderWidth: formData.color === color ? 3 : 0,
+                             borderColor: formData.color === color ? '#ffffff' : 'transparent'
+                           }
+                         ]}
+                         onPress={() => handleFieldSelect(color)}
+                       >
+                         {formData.color === color && (
+                           <Ionicons name="checkmark" size={20} color="#ffffff" />
+                         )}
+                       </TouchableOpacity>
+                     ))}
+                   </View>
+                 </View>
+
+                 {/* Стрелка вправо */}
+                 <TouchableOpacity
+                   style={[
+                     styles.colorSliderArrow,
+                     {
+                       backgroundColor: colors.surface,
+                       opacity: currentColorCategory === Object.keys(HABIT_COLOR_CATEGORIES).length - 1 ? 0.3 : 1
+                     }
+                   ]}
+                   onPress={() => {
+                     if (currentColorCategory < Object.keys(HABIT_COLOR_CATEGORIES).length - 1) {
+                       setCurrentColorCategory(currentColorCategory + 1);
+                     }
+                   }}
+                   disabled={currentColorCategory === Object.keys(HABIT_COLOR_CATEGORIES).length - 1}
+                 >
+                   <Ionicons name="chevron-forward" size={20} color={colors.text} />
+                 </TouchableOpacity>
+               </View>
+
+               {/* Индикаторы страниц */}
+               <View style={styles.colorSliderIndicators}>
+                 {Object.keys(HABIT_COLOR_CATEGORIES).map((_, index) => (
+                   <TouchableOpacity
+                     key={index}
+                     style={[
+                       styles.colorSliderDot,
+                       {
+                         backgroundColor: index === currentColorCategory
+                           ? colors.primary
+                           : colors.border
+                       }
+                     ]}
+                     onPress={() => setCurrentColorCategory(index)}
+                   />
+                 ))}
+               </View>
+             </View>
+           )}
           
           {/* Селектор для иконки */}
           {currentField === 'icon' && (
@@ -1103,25 +1186,97 @@ const fieldsOrder = ['name', 'description', 'category', 'type', 'weightGoal', 'd
               <Text style={[styles.selectorTitle, { color: colors.text }]}>
                 Выберите иконку
               </Text>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <View style={styles.iconGrid}>
-                  {HABIT_ICONS.map(icon => (
-                    <TouchableOpacity
-                      key={icon}
-                      style={[
-                        styles.iconOption,
-                        {
-                          backgroundColor: formData.icon === icon ? colors.primary + '20' : colors.background,
-                          borderColor: formData.icon === icon ? colors.primary : colors.border
-                        }
-                      ]}
-                      onPress={() => handleFieldSelect(icon)}
-                    >
-                      <Text style={styles.iconText}>{icon}</Text>
-                    </TouchableOpacity>
-                  ))}
+
+              {/* Заголовок текущей категории */}
+              <View style={styles.iconSliderHeader}>
+                <Text style={styles.iconCategoryIcon}>
+                  {Object.values(HABIT_ICON_CATEGORIES)[currentIconCategory]?.icon}
+                </Text>
+                <Text style={[styles.iconSliderCategoryTitle, { color: colors.text }]}>
+                  {Object.values(HABIT_ICON_CATEGORIES)[currentIconCategory]?.label}
+                </Text>
+              </View>
+
+              {/* Контейнер слайдера */}
+              <View style={styles.iconSliderContainer}>
+                {/* Стрелка влево */}
+                <TouchableOpacity
+                  style={[
+                    styles.iconSliderArrow,
+                    {
+                      backgroundColor: colors.surface,
+                      opacity: currentIconCategory === 0 ? 0.3 : 1
+                    }
+                  ]}
+                  onPress={() => {
+                    if (currentIconCategory > 0) {
+                      setCurrentIconCategory(currentIconCategory - 1);
+                    }
+                  }}
+                  disabled={currentIconCategory === 0}
+                >
+                  <Ionicons name="chevron-back" size={20} color={colors.text} />
+                </TouchableOpacity>
+
+                {/* Сетка иконок текущей категории */}
+                <View style={styles.iconSliderContent}>
+                  <View style={styles.iconCategoryGrid}>
+                    {Object.values(HABIT_ICON_CATEGORIES)[currentIconCategory]?.icons.map(icon => (
+                      <TouchableOpacity
+                        key={icon}
+                        style={[
+                          styles.iconOptionCompact,
+                          {
+                            backgroundColor: formData.icon === icon ? colors.primary + '20' : colors.background,
+                            borderColor: formData.icon === icon ? colors.primary : colors.border,
+                            borderWidth: formData.icon === icon ? 2 : 1
+                          }
+                        ]}
+                        onPress={() => handleFieldSelect(icon)}
+                      >
+                        <Text style={styles.iconTextCompact}>{icon}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
-              </ScrollView>
+
+                {/* Стрелка вправо */}
+                <TouchableOpacity
+                  style={[
+                    styles.iconSliderArrow,
+                    {
+                      backgroundColor: colors.surface,
+                      opacity: currentIconCategory === Object.keys(HABIT_ICON_CATEGORIES).length - 1 ? 0.3 : 1
+                    }
+                  ]}
+                  onPress={() => {
+                    if (currentIconCategory < Object.keys(HABIT_ICON_CATEGORIES).length - 1) {
+                      setCurrentIconCategory(currentIconCategory + 1);
+                    }
+                  }}
+                  disabled={currentIconCategory === Object.keys(HABIT_ICON_CATEGORIES).length - 1}
+                >
+                  <Ionicons name="chevron-forward" size={20} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Индикаторы страниц */}
+              <View style={styles.iconSliderIndicators}>
+                {Object.keys(HABIT_ICON_CATEGORIES).map((_, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.iconSliderDot,
+                      {
+                        backgroundColor: index === currentIconCategory
+                          ? colors.primary
+                          : colors.border
+                      }
+                    ]}
+                    onPress={() => setCurrentIconCategory(index)}
+                  />
+                ))}
+              </View>
             </View>
           )}
           
@@ -1722,6 +1877,127 @@ selectorSubtitle: {
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },
+
+  // Новые стили для категорий цветов
+  colorCategoriesScroll: {
+    maxHeight: 400,
+  },
+
+  colorCategory: {
+    marginBottom: SPACING.xl,
+  },
+
+  colorCategoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+
+  colorCategoryIcon: {
+    fontSize: 16,
+    marginRight: SPACING.sm,
+  },
+
+  colorCategoryTitle: {
+    ...TYPOGRAPHY.body,
+    fontWeight: '600',
+  },
+
+  colorSliderContent: {
+    flex: 1,
+    marginHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.sm,
+  },
+
+  colorCategoryGrid: {
+      width: 220,
+      alignSelf: 'center',
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      gap: SPACING.md,
+      paddingHorizontal: SPACING.sm,
+    },
+
+    colorOptionCompact: {
+      width: 60,
+      height: 60,
+      borderRadius: BORDER_RADIUS.full,
+      justifyContent: 'center',
+      alignItems: 'center',
+      elevation: 4,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
+      marginBottom: SPACING.sm,
+    },
+
+  // Стили слайдера цветов
+  colorSliderHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.lg,
+  },
+
+  colorSliderCategoryTitle: {
+    ...TYPOGRAPHY.h4,
+    fontWeight: '600',
+    marginLeft: SPACING.sm,
+  },
+
+  colorSliderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.lg,
+    minHeight: 140, // фиксированная высота для стабильности
+  },
+
+  colorSliderArrow: {
+    width: 44,
+    height: 44,
+    borderRadius: BORDER_RADIUS.full,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+
+  colorSliderArrow: {
+    width: 44,
+    height: 44,
+    borderRadius: BORDER_RADIUS.full,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+
+  colorSliderContent: {
+    flex: 1,
+    marginHorizontal: SPACING.md,
+  },
+
+  colorSliderIndicators: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+
+  colorSliderDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
   
   // Иконки
   iconGrid: {
@@ -1866,6 +2142,84 @@ selectorSubtitle: {
     ...TYPOGRAPHY.button,
     fontWeight: 'bold',
   },
+
+   // Стили слайдера иконок
+    iconSliderHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: SPACING.lg,
+    },
+
+    iconCategoryIcon: {
+      fontSize: 16,
+      marginRight: SPACING.sm,
+    },
+
+    iconSliderCategoryTitle: {
+      ...TYPOGRAPHY.h4,
+      fontWeight: '600',
+    },
+
+    iconSliderContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: SPACING.lg,
+      minHeight: 200,
+    },
+
+    iconSliderArrow: {
+      width: 44,
+      height: 44,
+      borderRadius: BORDER_RADIUS.full,
+      justifyContent: 'center',
+      alignItems: 'center',
+      elevation: 2,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
+    },
+
+    iconSliderContent: {
+      flex: 1,
+      marginHorizontal: SPACING.md,
+    },
+
+    iconCategoryGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      gap: SPACING.sm,
+    },
+
+    iconOptionCompact: {
+      width: '22%', // 4 в ряду
+      aspectRatio: 1,
+      borderRadius: BORDER_RADIUS.md,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: SPACING.sm,
+    },
+
+    iconTextCompact: {
+      fontSize: 24,
+    },
+
+    iconSliderIndicators: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: SPACING.sm,
+    },
+
+    iconSliderDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+
 });
 
 export default HabitFormModal;
