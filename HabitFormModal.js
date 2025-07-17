@@ -94,6 +94,10 @@ const HabitFormModal = ({
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
+  // === РЕФЫ ДЛЯ PICKER'ОВ ВРЕМЕНИ ===
+  const hoursScrollRef = useRef(null);
+  const minutesScrollRef = useRef(null);
+
   const colors = THEMES[theme] ? THEMES[theme][isDarkMode ? 'dark' : 'light'] : THEMES.blue.light;
 
   // === ГЕНЕРАЦИЯ ТЕКСТА ===
@@ -386,8 +390,8 @@ useEffect(() => {
         reminderTime: habit.reminderTime || '09:00',
         reminderEnabled: habit.reminderEnabled !== false  // ДОБАВЛЕНО: сохраняем состояние уведомлений
       });
-      
-      // Отметить все поля как заполненные
+
+
 // Отметить все поля как заполненные
 const fieldsToMark = ['name', 'description', 'category', 'type', 'frequency', 'color', 'icon', 'reminder'];
       if (habit.type === 'number' || habit.type === 'weight') {
@@ -432,6 +436,75 @@ const fieldsToMark = ['name', 'description', 'category', 'type', 'frequency', 'c
         return '';
     }
   };
+
+// === ЭФФЕКТ ДЛЯ РЕДАКТИРОВАНИЯ ПРИВЫЧКИ ===
+useEffect(() => {
+  if (habit) {
+    // Режим редактирования
+    setFormData({
+      name: habit.name || '',
+      description: habit.description || '',
+      icon: habit.icon || '🎯',
+      color: habit.color || '#2196F3',
+      category: habit.category || 'health',
+      type: habit.type || 'boolean',
+      targetValue: habit.targetValue?.toString() || '1',
+      targetWeight: habit.targetWeight?.toString() || '70',
+      weightGoal: habit.weightGoal || 'lose',
+      unit: habit.unit || 'times',
+      targetDaysPerWeek: habit.targetDaysPerWeek?.toString() || '7',
+      reminderTime: habit.reminderTime || '09:00',
+      reminderEnabled: habit.reminderEnabled !== false
+    });
+
+    // Отметить все поля как заполненные
+    const fieldsToMark = ['name', 'description', 'category', 'type', 'frequency', 'color', 'icon', 'reminder'];
+    if (habit.type === 'number' || habit.type === 'weight') {
+      fieldsToMark.push('details');
+    }
+    if (habit.type === 'weight') {
+      fieldsToMark.push('weightGoal');
+    }
+    setCompletedFields(new Set(fieldsToMark));
+  }
+}, [habit]);
+
+// === МГНОВЕННОЕ ПОЗИЦИОНИРОВАНИЕ БЕЗ СКРОЛЛИНГА ===
+useEffect(() => {
+  if (currentField === 'reminder' && showFieldSelector) {
+    // Используем requestAnimationFrame для синхронизации с рендером
+    requestAnimationFrame(() => {
+      const [hours, minutes] = formData.reminderTime.split(':');
+      const minutesArray = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+
+      // Устанавливаем начальную позицию для часов
+      if (hoursScrollRef.current) {
+        const hourIndex = parseInt(hours);
+        const scrollView = hoursScrollRef.current;
+
+        // Мгновенная установка позиции без анимации
+        scrollView.scrollTo({
+          y: hourIndex * 40,
+          animated: false
+        });
+      }
+
+      // Устанавливаем начальную позицию для минут
+      if (minutesScrollRef.current) {
+        const minuteIndex = minutesArray.indexOf(parseInt(minutes));
+        if (minuteIndex !== -1) {
+          const scrollView = minutesScrollRef.current;
+
+          // Мгновенная установка позиции без анимации
+          scrollView.scrollTo({
+            y: minuteIndex * 40,
+            animated: false
+          });
+        }
+      }
+    });
+  }
+}, [currentField, showFieldSelector, formData.reminderTime]);
 
   const resetForm = () => {
     setFormData({
@@ -1281,114 +1354,197 @@ const fieldsOrder = ['name', 'description', 'category', 'type', 'weightGoal', 'd
           )}
           
           {/* Селектор для времени */}
-          {currentField === 'reminder' && (
-            <View style={styles.selectorContent}>
-              <Text style={[styles.selectorTitle, { color: colors.text }]}>
-                Время напоминания
-              </Text>
-              
-              <View style={styles.timePickerContainer}>
-                {/* Часы */}
-                <View style={styles.timePickerColumn}>
-                  <Text style={[styles.timePickerLabel, { color: colors.textSecondary }]}>Часы</Text>
-                  <ScrollView 
-                    style={styles.timePickerScroll}
-                    showsVerticalScrollIndicator={false}
-                    snapToInterval={40}
-                    decelerationRate="fast"
-                  >
-                    {Array.from({ length: 24 }, (_, i) => (
-                      <TouchableOpacity
-                        key={i}
-                        style={[
-                          styles.timePickerItem,
-                          {
-                            backgroundColor: parseInt(formData.reminderTime.split(':')[0]) === i ? 
-                              colors.primary : 'transparent'
-                          }
-                        ]}
-                        onPress={() => {
-                          const minutes = formData.reminderTime.split(':')[1] || '0';
-                          setFormData({ 
-                            ...formData, 
-                            reminderTime: `${i.toString().padStart(2, '0')}:${minutes}` 
-                          });
-                        }}
-                      >
-                        <Text style={[
-                          styles.timePickerItemText,
-                          { 
-                            color: parseInt(formData.reminderTime.split(':')[0]) === i ? 
-                              '#ffffff' : colors.text,
-                            fontWeight: parseInt(formData.reminderTime.split(':')[0]) === i ? 
-                              'bold' : 'normal'
-                          }
-                        ]}>
-                          {i.toString().padStart(2, '0')}
+                    {currentField === 'reminder' && (
+                      <View style={styles.selectorContent}>
+                        <Text style={[styles.selectorTitle, { color: colors.text }]}>
+                          Время напоминания
                         </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-                
-                <Text style={[styles.timePickerSeparator, { color: colors.text }]}>:</Text>
-                
-                {/* Минуты */}
-                <View style={styles.timePickerColumn}>
-                  <Text style={[styles.timePickerLabel, { color: colors.textSecondary }]}>Минуты</Text>
-                  <ScrollView 
-                    style={styles.timePickerScroll}
-                    showsVerticalScrollIndicator={false}
-                    snapToInterval={40}
-                    decelerationRate="fast"
-                  >
-                    {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map(i => (
-                      <TouchableOpacity
-                        key={i}
-                        style={[
-                          styles.timePickerItem,
-                          {
-                            backgroundColor: parseInt(formData.reminderTime.split(':')[1]) === i ? 
-                              colors.primary : 'transparent'
-                          }
-                        ]}
-                        onPress={() => {
-                          const hours = formData.reminderTime.split(':')[0] || '09';
-                          setFormData({ 
-                            ...formData, 
-                            reminderTime: `${hours}:${i.toString().padStart(2, '0')}` 
-                          });
-                        }}
-                      >
-                        <Text style={[
-                          styles.timePickerItemText,
-                          { 
-                            color: parseInt(formData.reminderTime.split(':')[1]) === i ? 
-                              '#ffffff' : colors.text,
-                            fontWeight: parseInt(formData.reminderTime.split(':')[1]) === i ? 
-                              'bold' : 'normal'
-                          }
-                        ]}>
-                          {i.toString().padStart(2, '0')}
+
+                        <View style={styles.timePickerContainer}>
+                          {/* Часы */}
+                          <View style={styles.timePickerColumn}>
+                            <Text style={[styles.timePickerLabel, { color: colors.textSecondary }]}>Часы</Text>
+                            <View style={styles.timePickerWrapper}>
+                              {/* Центральная зона фокуса */}
+                              <View style={[styles.timePickerFocusZone, { borderColor: colors.primary }]} />
+
+                              <ScrollView
+                                ref={ref => { hoursScrollRef.current = ref; }}
+                                style={styles.timePickerScroll}
+                                showsVerticalScrollIndicator={false}
+                                snapToInterval={40}
+                                decelerationRate="fast"
+                                onMomentumScrollEnd={(event) => {
+                                  const offsetY = event.nativeEvent.contentOffset.y;
+                                  // Учитываем верхний отступ в 80px
+                                  const index = Math.round(offsetY / 40);
+                                  const clampedIndex = Math.max(0, Math.min(23, index));
+
+                                  // Автоматически обновляем время
+                                  const minutes = formData.reminderTime.split(':')[1] || '00';
+                                  setFormData({
+                                    ...formData,
+                                    reminderTime: `${clampedIndex.toString().padStart(2, '0')}:${minutes}`
+                                  });
+
+                                  // Haptic feedback
+                                  if (Platform.OS === 'ios') {
+                                    Vibration.vibrate(10);
+                                  }
+                                }}
+                                onScrollEndDrag={(event) => {
+                                  // Дополнительное центрирование при отпускании
+                                  const offsetY = event.nativeEvent.contentOffset.y;
+                                  const index = Math.round(offsetY / 40);
+                                  const clampedIndex = Math.max(0, Math.min(23, index));
+
+                                  hoursScrollRef.current?.scrollTo({
+                                    y: clampedIndex * 40,
+                                    animated: true
+                                  });
+                                }}
+                              >
+                                {/* Верхний отступ для центрирования */}
+                                <View style={{ height: 80 }} />
+
+                                {Array.from({ length: 24 }, (_, i) => {
+                                  const isCenter = parseInt(formData.reminderTime.split(':')[0]) === i;
+
+                                  return (
+                                    <View
+                                      key={i}
+                                      style={[
+                                        styles.timePickerItem,
+                                        {
+                                          backgroundColor: 'transparent',
+                                          opacity: isCenter ? 1 : 0.4,
+                                          transform: [
+                                            { scale: isCenter ? 1.2 : 1 }
+                                          ]
+                                        }
+                                      ]}
+                                    >
+                                      <Text style={[
+                                        styles.timePickerItemText,
+                                        {
+                                          color: isCenter ? colors.primary : colors.text,
+                                          fontWeight: isCenter ? 'bold' : 'normal',
+                                          fontSize: isCenter ? 20 : 16
+                                        }
+                                      ]}>
+                                        {i.toString().padStart(2, '0')}
+                                      </Text>
+                                    </View>
+                                  );
+                                })}
+
+                                {/* Нижний отступ для центрирования */}
+                                <View style={{ height: 80 }} />
+                              </ScrollView>
+                            </View>
+                          </View>
+
+                          <Text style={[styles.timePickerSeparator, { color: colors.text }]}>:</Text>
+
+                          {/* Минуты */}
+                          <View style={styles.timePickerColumn}>
+                            <Text style={[styles.timePickerLabel, { color: colors.textSecondary }]}>Минуты</Text>
+                            <View style={styles.timePickerWrapper}>
+                              {/* Центральная зона фокуса */}
+                              <View style={[styles.timePickerFocusZone, { borderColor: colors.primary }]} />
+
+                              <ScrollView
+                                ref={ref => { minutesScrollRef.current = ref; }}
+                                style={styles.timePickerScroll}
+                                showsVerticalScrollIndicator={false}
+                                snapToInterval={40}
+                                decelerationRate="fast"
+                                onMomentumScrollEnd={(event) => {
+                                  const offsetY = event.nativeEvent.contentOffset.y;
+                                  // Учитываем верхний отступ в 80px
+                                  const index = Math.round(offsetY / 40);
+                                  const minutesArray = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+                                  const clampedIndex = Math.max(0, Math.min(minutesArray.length - 1, index));
+                                  const selectedMinute = minutesArray[clampedIndex];
+
+                                  // Автоматически обновляем время
+                                  const hours = formData.reminderTime.split(':')[0] || '09';
+                                  setFormData({
+                                    ...formData,
+                                    reminderTime: `${hours}:${selectedMinute.toString().padStart(2, '0')}`
+                                  });
+
+                                  // Haptic feedback
+                                  if (Platform.OS === 'ios') {
+                                    Vibration.vibrate(10);
+                                  }
+                                }}
+                                onScrollEndDrag={(event) => {
+                                  // Дополнительное центрирование при отпускании
+                                  const offsetY = event.nativeEvent.contentOffset.y;
+                                  const index = Math.round(offsetY / 40);
+                                  const minutesArray = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+                                  const clampedIndex = Math.max(0, Math.min(minutesArray.length - 1, index));
+
+                                  minutesScrollRef.current?.scrollTo({
+                                    y: clampedIndex * 40,
+                                    animated: true
+                                  });
+                                }}
+                              >
+                                {/* Верхний отступ для центрирования */}
+                                <View style={{ height: 80 }} />
+
+                                {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map(i => {
+                                  const isCenter = parseInt(formData.reminderTime.split(':')[1]) === i;
+
+                                  return (
+                                    <View
+                                      key={i}
+                                      style={[
+                                        styles.timePickerItem,
+                                        {
+                                          backgroundColor: 'transparent',
+                                          opacity: isCenter ? 1 : 0.4,
+                                          transform: [
+                                            { scale: isCenter ? 1.2 : 1 }
+                                          ]
+                                        }
+                                      ]}
+                                    >
+                                      <Text style={[
+                                        styles.timePickerItemText,
+                                        {
+                                          color: isCenter ? colors.primary : colors.text,
+                                          fontWeight: isCenter ? 'bold' : 'normal',
+                                          fontSize: isCenter ? 20 : 16
+                                        }
+                                      ]}>
+                                        {i.toString().padStart(2, '0')}
+                                      </Text>
+                                    </View>
+                                  );
+                                })}
+
+                                {/* Нижний отступ для центрирования */}
+                                <View style={{ height: 80 }} />
+                              </ScrollView>
+                            </View>
+                          </View>
+                        </View>
+
+                        <Text style={[styles.selectedTimePreview, { color: colors.text }]}>
+                          Выбрано: {formData.reminderTime}
                         </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              </View>
-              
-              <Text style={[styles.selectedTimePreview, { color: colors.text }]}>
-                Выбрано: {formData.reminderTime}
-              </Text>
-              
-              <TouchableOpacity
-                style={[styles.selectorButton, { backgroundColor: colors.primary }]}
-                onPress={() => handleFieldSelect(formData.reminderTime)}
-              >
-                <Text style={styles.selectorButtonText}>Готово</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+
+                        <TouchableOpacity
+                          style={[styles.selectorButton, { backgroundColor: colors.primary }]}
+                          onPress={() => handleFieldSelect(formData.reminderTime)}
+                        >
+                          <Text style={styles.selectorButtonText}>Готово</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
         </Animated.View>
       </View>
     );
@@ -2219,6 +2375,76 @@ selectorSubtitle: {
       height: 8,
       borderRadius: 4,
     },
+
+// === СТИЛИ ДЛЯ PICKER'А ВРЕМЕНИ ===
+timePickerContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: 240, // Увеличил с 200 до 240
+  marginVertical: SPACING.md,
+},
+
+timePickerColumn: {
+  flex: 1,
+  alignItems: 'center',
+},
+
+timePickerLabel: {
+  fontSize: 12,
+  fontWeight: '600',
+  marginBottom: SPACING.sm,
+  textTransform: 'uppercase',
+},
+
+timePickerWrapper: {
+  position: 'relative',
+  height: 200, // Увеличил с 160 до 200 (5 элементов * 40px)
+  width: 80,
+},
+
+timePickerFocusZone: {
+  position: 'absolute',
+  top: 80, // Остается по центру (200/2 - 40/2 = 80)
+  left: 0,
+  right: 0,
+  height: 40,
+  borderWidth: 2,
+  borderRadius: BORDER_RADIUS.md,
+  backgroundColor: 'transparent',
+  zIndex: 1,
+  pointerEvents: 'none',
+},
+
+timePickerScroll: {
+  height: 200, // Увеличил с 160 до 200
+  width: 80,
+},
+
+timePickerItem: {
+  height: 40,
+  justifyContent: 'center',
+  alignItems: 'center',
+  marginVertical: 0,
+  borderRadius: BORDER_RADIUS.md,
+},
+
+timePickerItemText: {
+  fontSize: 18,
+},
+
+timePickerSeparator: {
+  fontSize: 24,
+  fontWeight: 'bold',
+  marginHorizontal: SPACING.md,
+},
+
+selectedTimePreview: {
+  textAlign: 'center',
+  fontSize: 16,
+  fontWeight: '600',
+  marginBottom: SPACING.md,
+},
 
 });
 
