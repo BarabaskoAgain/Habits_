@@ -31,7 +31,9 @@ import {
   TYPOGRAPHY,
   HABIT_CATEGORIES,
   HABIT_ICONS,
+  HABIT_ICON_CATEGORIES,
   HABIT_COLORS,
+  HABIT_COLOR_CATEGORIES,
   HABIT_TYPES,
   MEASUREMENT_UNITS
 } from './constants';
@@ -63,6 +65,10 @@ const HabitFormModal = ({
     reminderEnabled: true  // ДОБАВЛЕНО: поле для уведомлений
   });
 
+  // === СОСТОЯНИЕ СЛАЙДЕРА ЦВЕТОВ И ИКОНОК ===
+  const [currentColorCategory, setCurrentColorCategory] = useState(0);
+    const [currentIconCategory, setCurrentIconCategory] = useState(0);
+
   // === СОСТОЯНИЕ ТЕКСТОВОГО РЕЖИМА ===
   const [currentField, setCurrentField] = useState(null);
   const [completedFields, setCompletedFields] = useState(new Set());
@@ -87,6 +93,10 @@ const HabitFormModal = ({
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  // === РЕФЫ ДЛЯ PICKER'ОВ ВРЕМЕНИ ===
+  const hoursScrollRef = useRef(null);
+  const minutesScrollRef = useRef(null);
 
   const colors = THEMES[theme] ? THEMES[theme][isDarkMode ? 'dark' : 'light'] : THEMES.blue.light;
 
@@ -380,8 +390,8 @@ useEffect(() => {
         reminderTime: habit.reminderTime || '09:00',
         reminderEnabled: habit.reminderEnabled !== false  // ДОБАВЛЕНО: сохраняем состояние уведомлений
       });
-      
-      // Отметить все поля как заполненные
+
+
 // Отметить все поля как заполненные
 const fieldsToMark = ['name', 'description', 'category', 'type', 'frequency', 'color', 'icon', 'reminder'];
       if (habit.type === 'number' || habit.type === 'weight') {
@@ -426,6 +436,75 @@ const fieldsToMark = ['name', 'description', 'category', 'type', 'frequency', 'c
         return '';
     }
   };
+
+// === ЭФФЕКТ ДЛЯ РЕДАКТИРОВАНИЯ ПРИВЫЧКИ ===
+useEffect(() => {
+  if (habit) {
+    // Режим редактирования
+    setFormData({
+      name: habit.name || '',
+      description: habit.description || '',
+      icon: habit.icon || '🎯',
+      color: habit.color || '#2196F3',
+      category: habit.category || 'health',
+      type: habit.type || 'boolean',
+      targetValue: habit.targetValue?.toString() || '1',
+      targetWeight: habit.targetWeight?.toString() || '70',
+      weightGoal: habit.weightGoal || 'lose',
+      unit: habit.unit || 'times',
+      targetDaysPerWeek: habit.targetDaysPerWeek?.toString() || '7',
+      reminderTime: habit.reminderTime || '09:00',
+      reminderEnabled: habit.reminderEnabled !== false
+    });
+
+    // Отметить все поля как заполненные
+    const fieldsToMark = ['name', 'description', 'category', 'type', 'frequency', 'color', 'icon', 'reminder'];
+    if (habit.type === 'number' || habit.type === 'weight') {
+      fieldsToMark.push('details');
+    }
+    if (habit.type === 'weight') {
+      fieldsToMark.push('weightGoal');
+    }
+    setCompletedFields(new Set(fieldsToMark));
+  }
+}, [habit]);
+
+// === МГНОВЕННОЕ ПОЗИЦИОНИРОВАНИЕ БЕЗ СКРОЛЛИНГА ===
+useEffect(() => {
+  if (currentField === 'reminder' && showFieldSelector) {
+    // Используем requestAnimationFrame для синхронизации с рендером
+    requestAnimationFrame(() => {
+      const [hours, minutes] = formData.reminderTime.split(':');
+      const minutesArray = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+
+      // Устанавливаем начальную позицию для часов
+      if (hoursScrollRef.current) {
+        const hourIndex = parseInt(hours);
+        const scrollView = hoursScrollRef.current;
+
+        // Мгновенная установка позиции без анимации
+        scrollView.scrollTo({
+          y: hourIndex * 40,
+          animated: false
+        });
+      }
+
+      // Устанавливаем начальную позицию для минут
+      if (minutesScrollRef.current) {
+        const minuteIndex = minutesArray.indexOf(parseInt(minutes));
+        if (minuteIndex !== -1) {
+          const scrollView = minutesScrollRef.current;
+
+          // Мгновенная установка позиции без анимации
+          scrollView.scrollTo({
+            y: minuteIndex * 40,
+            animated: false
+          });
+        }
+      }
+    });
+  }
+}, [currentField, showFieldSelector, formData.reminderTime]);
 
   const resetForm = () => {
     setFormData({
@@ -1072,30 +1151,107 @@ const fieldsOrder = ['name', 'description', 'category', 'type', 'weightGoal', 'd
             </View>
           )}
           
-          {/* Селектор для цвета */}
-          {currentField === 'color' && (
-            <View style={styles.selectorContent}>
-              <Text style={[styles.selectorTitle, { color: colors.text }]}>
-                Выберите цвет
-              </Text>
-              <View style={styles.colorGrid}>
-                {HABIT_COLORS.map(color => (
-                  <TouchableOpacity
-                    key={color}
-                    style={[
-                      styles.colorOption,
-                      { backgroundColor: color }
-                    ]}
-                    onPress={() => handleFieldSelect(color)}
-                  >
-                    {formData.color === color && (
-                      <Ionicons name="checkmark" size={24} color="#ffffff" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
+    {/* Селектор для цвета */}
+           {currentField === 'color' && (
+             <View style={styles.selectorContent}>
+               <Text style={[styles.selectorTitle, { color: colors.text }]}>
+                 Выберите цвет
+               </Text>
+
+               {/* Заголовок текущей категории */}
+               <View style={styles.colorSliderHeader}>
+                 <Text style={styles.colorCategoryIcon}>
+                   {Object.values(HABIT_COLOR_CATEGORIES)[currentColorCategory]?.icon}
+                 </Text>
+                 <Text style={[styles.colorSliderCategoryTitle, { color: colors.text }]}>
+                   {Object.values(HABIT_COLOR_CATEGORIES)[currentColorCategory]?.label}
+                 </Text>
+               </View>
+
+               {/* Контейнер слайдера */}
+               <View style={styles.colorSliderContainer}>
+                 {/* Стрелка влево */}
+                 <TouchableOpacity
+                   style={[
+                     styles.colorSliderArrow,
+                     {
+                       backgroundColor: colors.surface,
+                       opacity: currentColorCategory === 0 ? 0.3 : 1
+                     }
+                   ]}
+                   onPress={() => {
+                     if (currentColorCategory > 0) {
+                       setCurrentColorCategory(currentColorCategory - 1);
+                     }
+                   }}
+                   disabled={currentColorCategory === 0}
+                 >
+                   <Ionicons name="chevron-back" size={20} color={colors.text} />
+                 </TouchableOpacity>
+
+                 {/* Сетка цветов текущей категории */}
+                 <View style={styles.colorSliderContent}>
+                   <View style={styles.colorCategoryGrid}>
+                     {Object.values(HABIT_COLOR_CATEGORIES)[currentColorCategory]?.colors.map(color => (
+                       <TouchableOpacity
+                         key={color}
+                         style={[
+                           styles.colorOptionCompact,
+                           {
+                             backgroundColor: color,
+                             borderWidth: formData.color === color ? 3 : 0,
+                             borderColor: formData.color === color ? '#ffffff' : 'transparent'
+                           }
+                         ]}
+                         onPress={() => handleFieldSelect(color)}
+                       >
+                         {formData.color === color && (
+                           <Ionicons name="checkmark" size={20} color="#ffffff" />
+                         )}
+                       </TouchableOpacity>
+                     ))}
+                   </View>
+                 </View>
+
+                 {/* Стрелка вправо */}
+                 <TouchableOpacity
+                   style={[
+                     styles.colorSliderArrow,
+                     {
+                       backgroundColor: colors.surface,
+                       opacity: currentColorCategory === Object.keys(HABIT_COLOR_CATEGORIES).length - 1 ? 0.3 : 1
+                     }
+                   ]}
+                   onPress={() => {
+                     if (currentColorCategory < Object.keys(HABIT_COLOR_CATEGORIES).length - 1) {
+                       setCurrentColorCategory(currentColorCategory + 1);
+                     }
+                   }}
+                   disabled={currentColorCategory === Object.keys(HABIT_COLOR_CATEGORIES).length - 1}
+                 >
+                   <Ionicons name="chevron-forward" size={20} color={colors.text} />
+                 </TouchableOpacity>
+               </View>
+
+               {/* Индикаторы страниц */}
+               <View style={styles.colorSliderIndicators}>
+                 {Object.keys(HABIT_COLOR_CATEGORIES).map((_, index) => (
+                   <TouchableOpacity
+                     key={index}
+                     style={[
+                       styles.colorSliderDot,
+                       {
+                         backgroundColor: index === currentColorCategory
+                           ? colors.primary
+                           : colors.border
+                       }
+                     ]}
+                     onPress={() => setCurrentColorCategory(index)}
+                   />
+                 ))}
+               </View>
+             </View>
+           )}
           
           {/* Селектор для иконки */}
           {currentField === 'icon' && (
@@ -1103,137 +1259,292 @@ const fieldsOrder = ['name', 'description', 'category', 'type', 'weightGoal', 'd
               <Text style={[styles.selectorTitle, { color: colors.text }]}>
                 Выберите иконку
               </Text>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <View style={styles.iconGrid}>
-                  {HABIT_ICONS.map(icon => (
-                    <TouchableOpacity
-                      key={icon}
-                      style={[
-                        styles.iconOption,
-                        {
-                          backgroundColor: formData.icon === icon ? colors.primary + '20' : colors.background,
-                          borderColor: formData.icon === icon ? colors.primary : colors.border
-                        }
-                      ]}
-                      onPress={() => handleFieldSelect(icon)}
-                    >
-                      <Text style={styles.iconText}>{icon}</Text>
-                    </TouchableOpacity>
-                  ))}
+
+              {/* Заголовок текущей категории */}
+              <View style={styles.iconSliderHeader}>
+                <Text style={styles.iconCategoryIcon}>
+                  {Object.values(HABIT_ICON_CATEGORIES)[currentIconCategory]?.icon}
+                </Text>
+                <Text style={[styles.iconSliderCategoryTitle, { color: colors.text }]}>
+                  {Object.values(HABIT_ICON_CATEGORIES)[currentIconCategory]?.label}
+                </Text>
+              </View>
+
+              {/* Контейнер слайдера */}
+              <View style={styles.iconSliderContainer}>
+                {/* Стрелка влево */}
+                <TouchableOpacity
+                  style={[
+                    styles.iconSliderArrow,
+                    {
+                      backgroundColor: colors.surface,
+                      opacity: currentIconCategory === 0 ? 0.3 : 1
+                    }
+                  ]}
+                  onPress={() => {
+                    if (currentIconCategory > 0) {
+                      setCurrentIconCategory(currentIconCategory - 1);
+                    }
+                  }}
+                  disabled={currentIconCategory === 0}
+                >
+                  <Ionicons name="chevron-back" size={20} color={colors.text} />
+                </TouchableOpacity>
+
+                {/* Сетка иконок текущей категории */}
+                <View style={styles.iconSliderContent}>
+                  <View style={styles.iconCategoryGrid}>
+                    {Object.values(HABIT_ICON_CATEGORIES)[currentIconCategory]?.icons.map(icon => (
+                      <TouchableOpacity
+                        key={icon}
+                        style={[
+                          styles.iconOptionCompact,
+                          {
+                            backgroundColor: formData.icon === icon ? colors.primary + '20' : colors.background,
+                            borderColor: formData.icon === icon ? colors.primary : colors.border,
+                            borderWidth: formData.icon === icon ? 2 : 1
+                          }
+                        ]}
+                        onPress={() => handleFieldSelect(icon)}
+                      >
+                        <Text style={styles.iconTextCompact}>{icon}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
-              </ScrollView>
+
+                {/* Стрелка вправо */}
+                <TouchableOpacity
+                  style={[
+                    styles.iconSliderArrow,
+                    {
+                      backgroundColor: colors.surface,
+                      opacity: currentIconCategory === Object.keys(HABIT_ICON_CATEGORIES).length - 1 ? 0.3 : 1
+                    }
+                  ]}
+                  onPress={() => {
+                    if (currentIconCategory < Object.keys(HABIT_ICON_CATEGORIES).length - 1) {
+                      setCurrentIconCategory(currentIconCategory + 1);
+                    }
+                  }}
+                  disabled={currentIconCategory === Object.keys(HABIT_ICON_CATEGORIES).length - 1}
+                >
+                  <Ionicons name="chevron-forward" size={20} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Индикаторы страниц */}
+              <View style={styles.iconSliderIndicators}>
+                {Object.keys(HABIT_ICON_CATEGORIES).map((_, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.iconSliderDot,
+                      {
+                        backgroundColor: index === currentIconCategory
+                          ? colors.primary
+                          : colors.border
+                      }
+                    ]}
+                    onPress={() => setCurrentIconCategory(index)}
+                  />
+                ))}
+              </View>
             </View>
           )}
           
           {/* Селектор для времени */}
-          {currentField === 'reminder' && (
-            <View style={styles.selectorContent}>
-              <Text style={[styles.selectorTitle, { color: colors.text }]}>
-                Время напоминания
-              </Text>
-              
-              <View style={styles.timePickerContainer}>
-                {/* Часы */}
-                <View style={styles.timePickerColumn}>
-                  <Text style={[styles.timePickerLabel, { color: colors.textSecondary }]}>Часы</Text>
-                  <ScrollView 
-                    style={styles.timePickerScroll}
-                    showsVerticalScrollIndicator={false}
-                    snapToInterval={40}
-                    decelerationRate="fast"
-                  >
-                    {Array.from({ length: 24 }, (_, i) => (
-                      <TouchableOpacity
-                        key={i}
-                        style={[
-                          styles.timePickerItem,
-                          {
-                            backgroundColor: parseInt(formData.reminderTime.split(':')[0]) === i ? 
-                              colors.primary : 'transparent'
-                          }
-                        ]}
-                        onPress={() => {
-                          const minutes = formData.reminderTime.split(':')[1] || '0';
-                          setFormData({ 
-                            ...formData, 
-                            reminderTime: `${i.toString().padStart(2, '0')}:${minutes}` 
-                          });
-                        }}
-                      >
-                        <Text style={[
-                          styles.timePickerItemText,
-                          { 
-                            color: parseInt(formData.reminderTime.split(':')[0]) === i ? 
-                              '#ffffff' : colors.text,
-                            fontWeight: parseInt(formData.reminderTime.split(':')[0]) === i ? 
-                              'bold' : 'normal'
-                          }
-                        ]}>
-                          {i.toString().padStart(2, '0')}
+                    {currentField === 'reminder' && (
+                      <View style={styles.selectorContent}>
+                        <Text style={[styles.selectorTitle, { color: colors.text }]}>
+                          Время напоминания
                         </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-                
-                <Text style={[styles.timePickerSeparator, { color: colors.text }]}>:</Text>
-                
-                {/* Минуты */}
-                <View style={styles.timePickerColumn}>
-                  <Text style={[styles.timePickerLabel, { color: colors.textSecondary }]}>Минуты</Text>
-                  <ScrollView 
-                    style={styles.timePickerScroll}
-                    showsVerticalScrollIndicator={false}
-                    snapToInterval={40}
-                    decelerationRate="fast"
-                  >
-                    {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map(i => (
-                      <TouchableOpacity
-                        key={i}
-                        style={[
-                          styles.timePickerItem,
-                          {
-                            backgroundColor: parseInt(formData.reminderTime.split(':')[1]) === i ? 
-                              colors.primary : 'transparent'
-                          }
-                        ]}
-                        onPress={() => {
-                          const hours = formData.reminderTime.split(':')[0] || '09';
-                          setFormData({ 
-                            ...formData, 
-                            reminderTime: `${hours}:${i.toString().padStart(2, '0')}` 
-                          });
-                        }}
-                      >
-                        <Text style={[
-                          styles.timePickerItemText,
-                          { 
-                            color: parseInt(formData.reminderTime.split(':')[1]) === i ? 
-                              '#ffffff' : colors.text,
-                            fontWeight: parseInt(formData.reminderTime.split(':')[1]) === i ? 
-                              'bold' : 'normal'
-                          }
-                        ]}>
-                          {i.toString().padStart(2, '0')}
+
+                        <View style={styles.timePickerContainer}>
+                          {/* Часы */}
+                          <View style={styles.timePickerColumn}>
+                            <Text style={[styles.timePickerLabel, { color: colors.textSecondary }]}>Часы</Text>
+                            <View style={styles.timePickerWrapper}>
+                              {/* Центральная зона фокуса */}
+                              <View style={[styles.timePickerFocusZone, { borderColor: colors.primary }]} />
+
+                              <ScrollView
+                                ref={ref => { hoursScrollRef.current = ref; }}
+                                style={styles.timePickerScroll}
+                                showsVerticalScrollIndicator={false}
+                                snapToInterval={40}
+                                decelerationRate="fast"
+                                onMomentumScrollEnd={(event) => {
+                                  const offsetY = event.nativeEvent.contentOffset.y;
+                                  // Учитываем верхний отступ в 80px
+                                  const index = Math.round(offsetY / 40);
+                                  const clampedIndex = Math.max(0, Math.min(23, index));
+
+                                  // Автоматически обновляем время
+                                  const minutes = formData.reminderTime.split(':')[1] || '00';
+                                  setFormData({
+                                    ...formData,
+                                    reminderTime: `${clampedIndex.toString().padStart(2, '0')}:${minutes}`
+                                  });
+
+                                  // Haptic feedback
+                                  if (Platform.OS === 'ios') {
+                                    Vibration.vibrate(10);
+                                  }
+                                }}
+                                onScrollEndDrag={(event) => {
+                                  // Дополнительное центрирование при отпускании
+                                  const offsetY = event.nativeEvent.contentOffset.y;
+                                  const index = Math.round(offsetY / 40);
+                                  const clampedIndex = Math.max(0, Math.min(23, index));
+
+                                  hoursScrollRef.current?.scrollTo({
+                                    y: clampedIndex * 40,
+                                    animated: true
+                                  });
+                                }}
+                              >
+                                {/* Верхний отступ для центрирования */}
+                                <View style={{ height: 80 }} />
+
+                                {Array.from({ length: 24 }, (_, i) => {
+                                  const isCenter = parseInt(formData.reminderTime.split(':')[0]) === i;
+
+                                  return (
+                                    <View
+                                      key={i}
+                                      style={[
+                                        styles.timePickerItem,
+                                        {
+                                          backgroundColor: 'transparent',
+                                          opacity: isCenter ? 1 : 0.4,
+                                          transform: [
+                                            { scale: isCenter ? 1.2 : 1 }
+                                          ]
+                                        }
+                                      ]}
+                                    >
+                                      <Text style={[
+                                        styles.timePickerItemText,
+                                        {
+                                          color: isCenter ? colors.primary : colors.text,
+                                          fontWeight: isCenter ? 'bold' : 'normal',
+                                          fontSize: isCenter ? 20 : 16
+                                        }
+                                      ]}>
+                                        {i.toString().padStart(2, '0')}
+                                      </Text>
+                                    </View>
+                                  );
+                                })}
+
+                                {/* Нижний отступ для центрирования */}
+                                <View style={{ height: 80 }} />
+                              </ScrollView>
+                            </View>
+                          </View>
+
+                          <Text style={[styles.timePickerSeparator, { color: colors.text }]}>:</Text>
+
+                          {/* Минуты */}
+                          <View style={styles.timePickerColumn}>
+                            <Text style={[styles.timePickerLabel, { color: colors.textSecondary }]}>Минуты</Text>
+                            <View style={styles.timePickerWrapper}>
+                              {/* Центральная зона фокуса */}
+                              <View style={[styles.timePickerFocusZone, { borderColor: colors.primary }]} />
+
+                              <ScrollView
+                                ref={ref => { minutesScrollRef.current = ref; }}
+                                style={styles.timePickerScroll}
+                                showsVerticalScrollIndicator={false}
+                                snapToInterval={40}
+                                decelerationRate="fast"
+                                onMomentumScrollEnd={(event) => {
+                                  const offsetY = event.nativeEvent.contentOffset.y;
+                                  // Учитываем верхний отступ в 80px
+                                  const index = Math.round(offsetY / 40);
+                                  const minutesArray = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+                                  const clampedIndex = Math.max(0, Math.min(minutesArray.length - 1, index));
+                                  const selectedMinute = minutesArray[clampedIndex];
+
+                                  // Автоматически обновляем время
+                                  const hours = formData.reminderTime.split(':')[0] || '09';
+                                  setFormData({
+                                    ...formData,
+                                    reminderTime: `${hours}:${selectedMinute.toString().padStart(2, '0')}`
+                                  });
+
+                                  // Haptic feedback
+                                  if (Platform.OS === 'ios') {
+                                    Vibration.vibrate(10);
+                                  }
+                                }}
+                                onScrollEndDrag={(event) => {
+                                  // Дополнительное центрирование при отпускании
+                                  const offsetY = event.nativeEvent.contentOffset.y;
+                                  const index = Math.round(offsetY / 40);
+                                  const minutesArray = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+                                  const clampedIndex = Math.max(0, Math.min(minutesArray.length - 1, index));
+
+                                  minutesScrollRef.current?.scrollTo({
+                                    y: clampedIndex * 40,
+                                    animated: true
+                                  });
+                                }}
+                              >
+                                {/* Верхний отступ для центрирования */}
+                                <View style={{ height: 80 }} />
+
+                                {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map(i => {
+                                  const isCenter = parseInt(formData.reminderTime.split(':')[1]) === i;
+
+                                  return (
+                                    <View
+                                      key={i}
+                                      style={[
+                                        styles.timePickerItem,
+                                        {
+                                          backgroundColor: 'transparent',
+                                          opacity: isCenter ? 1 : 0.4,
+                                          transform: [
+                                            { scale: isCenter ? 1.2 : 1 }
+                                          ]
+                                        }
+                                      ]}
+                                    >
+                                      <Text style={[
+                                        styles.timePickerItemText,
+                                        {
+                                          color: isCenter ? colors.primary : colors.text,
+                                          fontWeight: isCenter ? 'bold' : 'normal',
+                                          fontSize: isCenter ? 20 : 16
+                                        }
+                                      ]}>
+                                        {i.toString().padStart(2, '0')}
+                                      </Text>
+                                    </View>
+                                  );
+                                })}
+
+                                {/* Нижний отступ для центрирования */}
+                                <View style={{ height: 80 }} />
+                              </ScrollView>
+                            </View>
+                          </View>
+                        </View>
+
+                        <Text style={[styles.selectedTimePreview, { color: colors.text }]}>
+                          Выбрано: {formData.reminderTime}
                         </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              </View>
-              
-              <Text style={[styles.selectedTimePreview, { color: colors.text }]}>
-                Выбрано: {formData.reminderTime}
-              </Text>
-              
-              <TouchableOpacity
-                style={[styles.selectorButton, { backgroundColor: colors.primary }]}
-                onPress={() => handleFieldSelect(formData.reminderTime)}
-              >
-                <Text style={styles.selectorButtonText}>Готово</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+
+                        <TouchableOpacity
+                          style={[styles.selectorButton, { backgroundColor: colors.primary }]}
+                          onPress={() => handleFieldSelect(formData.reminderTime)}
+                        >
+                          <Text style={styles.selectorButtonText}>Готово</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
         </Animated.View>
       </View>
     );
@@ -1722,6 +2033,127 @@ selectorSubtitle: {
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },
+
+  // Новые стили для категорий цветов
+  colorCategoriesScroll: {
+    maxHeight: 400,
+  },
+
+  colorCategory: {
+    marginBottom: SPACING.xl,
+  },
+
+  colorCategoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+
+  colorCategoryIcon: {
+    fontSize: 16,
+    marginRight: SPACING.sm,
+  },
+
+  colorCategoryTitle: {
+    ...TYPOGRAPHY.body,
+    fontWeight: '600',
+  },
+
+  colorSliderContent: {
+    flex: 1,
+    marginHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.sm,
+  },
+
+  colorCategoryGrid: {
+      width: 220,
+      alignSelf: 'center',
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      gap: SPACING.md,
+      paddingHorizontal: SPACING.sm,
+    },
+
+    colorOptionCompact: {
+      width: 60,
+      height: 60,
+      borderRadius: BORDER_RADIUS.full,
+      justifyContent: 'center',
+      alignItems: 'center',
+      elevation: 4,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
+      marginBottom: SPACING.sm,
+    },
+
+  // Стили слайдера цветов
+  colorSliderHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.lg,
+  },
+
+  colorSliderCategoryTitle: {
+    ...TYPOGRAPHY.h4,
+    fontWeight: '600',
+    marginLeft: SPACING.sm,
+  },
+
+  colorSliderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.lg,
+    minHeight: 140, // фиксированная высота для стабильности
+  },
+
+  colorSliderArrow: {
+    width: 44,
+    height: 44,
+    borderRadius: BORDER_RADIUS.full,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+
+  colorSliderArrow: {
+    width: 44,
+    height: 44,
+    borderRadius: BORDER_RADIUS.full,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+
+  colorSliderContent: {
+    flex: 1,
+    marginHorizontal: SPACING.md,
+  },
+
+  colorSliderIndicators: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+
+  colorSliderDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
   
   // Иконки
   iconGrid: {
@@ -1866,6 +2298,154 @@ selectorSubtitle: {
     ...TYPOGRAPHY.button,
     fontWeight: 'bold',
   },
+
+   // Стили слайдера иконок
+    iconSliderHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: SPACING.lg,
+    },
+
+    iconCategoryIcon: {
+      fontSize: 16,
+      marginRight: SPACING.sm,
+    },
+
+    iconSliderCategoryTitle: {
+      ...TYPOGRAPHY.h4,
+      fontWeight: '600',
+    },
+
+    iconSliderContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: SPACING.lg,
+      minHeight: 200,
+    },
+
+    iconSliderArrow: {
+      width: 44,
+      height: 44,
+      borderRadius: BORDER_RADIUS.full,
+      justifyContent: 'center',
+      alignItems: 'center',
+      elevation: 2,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
+    },
+
+    iconSliderContent: {
+      flex: 1,
+      marginHorizontal: SPACING.md,
+    },
+
+    iconCategoryGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      gap: SPACING.sm,
+    },
+
+    iconOptionCompact: {
+      width: '22%', // 4 в ряду
+      aspectRatio: 1,
+      borderRadius: BORDER_RADIUS.md,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: SPACING.sm,
+    },
+
+    iconTextCompact: {
+      fontSize: 24,
+    },
+
+    iconSliderIndicators: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: SPACING.sm,
+    },
+
+    iconSliderDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+
+// === СТИЛИ ДЛЯ PICKER'А ВРЕМЕНИ ===
+timePickerContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: 240, // Увеличил с 200 до 240
+  marginVertical: SPACING.md,
+},
+
+timePickerColumn: {
+  flex: 1,
+  alignItems: 'center',
+},
+
+timePickerLabel: {
+  fontSize: 12,
+  fontWeight: '600',
+  marginBottom: SPACING.sm,
+  textTransform: 'uppercase',
+},
+
+timePickerWrapper: {
+  position: 'relative',
+  height: 200, // Увеличил с 160 до 200 (5 элементов * 40px)
+  width: 80,
+},
+
+timePickerFocusZone: {
+  position: 'absolute',
+  top: 80, // Остается по центру (200/2 - 40/2 = 80)
+  left: 0,
+  right: 0,
+  height: 40,
+  borderWidth: 2,
+  borderRadius: BORDER_RADIUS.md,
+  backgroundColor: 'transparent',
+  zIndex: 1,
+  pointerEvents: 'none',
+},
+
+timePickerScroll: {
+  height: 200, // Увеличил с 160 до 200
+  width: 80,
+},
+
+timePickerItem: {
+  height: 40,
+  justifyContent: 'center',
+  alignItems: 'center',
+  marginVertical: 0,
+  borderRadius: BORDER_RADIUS.md,
+},
+
+timePickerItemText: {
+  fontSize: 18,
+},
+
+timePickerSeparator: {
+  fontSize: 24,
+  fontWeight: 'bold',
+  marginHorizontal: SPACING.md,
+},
+
+selectedTimePreview: {
+  textAlign: 'center',
+  fontSize: 16,
+  fontWeight: '600',
+  marginBottom: SPACING.md,
+},
+
 });
 
 export default HabitFormModal;

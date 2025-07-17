@@ -24,22 +24,47 @@ import { THEMES, SPACING, BORDER_RADIUS, TYPOGRAPHY, DEFAULT_SETTINGS } from './
 import { dateUtils } from './utils';
 
 // === АНИМИРОВАННАЯ КНОПКА ДОБАВЛЕНИЯ ===
-const AnimatedAddButton = ({ onPress, colors }) => {
+const AnimatedAddButton = ({ onPress, colors, settings = DEFAULT_SETTINGS }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const colorAnim = useRef(new Animated.Value(0)).current;
 
-  // Медленное переливание цветов
+  // Получаем настройки анимации
+  const animationSettings = settings.buttonAnimation || DEFAULT_SETTINGS.buttonAnimation;
+  const isAnimationEnabled = animationSettings.enabled;
+  const animationSpeed = animationSettings.speed || 1;
+  const selectedColor = animationSettings.color || 'primary';
+
+  // Получаем цвет кнопки из настроек
+  const getButtonColor = () => {
+    switch (selectedColor) {
+      case 'primary': return colors.primary;
+      case 'secondary': return colors.secondary;
+      case 'success': return colors.success;
+      case 'warning': return colors.warning;
+      case 'error': return colors.error;
+      default: return colors.primary;
+    }
+  };
+
+  const buttonColor = getButtonColor();
+
+  // Переливание цветов (только если анимация включена)
   useEffect(() => {
+    if (!isAnimationEnabled) return;
+
+    const baseDuration = 3000; // базовая длительность
+    const duration = baseDuration / animationSpeed; // применяем скорость
+
     const colorAnimation = Animated.loop(
       Animated.sequence([
         Animated.timing(colorAnim, {
           toValue: 1,
-          duration: 9000, // 3 секунды в одну сторону
-          useNativeDriver: false, // Для цветов нужен false
+          duration: duration,
+          useNativeDriver: false,
         }),
         Animated.timing(colorAnim, {
           toValue: 0,
-          duration: 3000, // 3 секунды обратно
+          duration: duration,
           useNativeDriver: false,
         }),
       ])
@@ -48,7 +73,7 @@ const AnimatedAddButton = ({ onPress, colors }) => {
     colorAnimation.start();
 
     return () => colorAnimation.stop();
-  }, []);
+  }, [isAnimationEnabled, animationSpeed, colorAnim]);
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -71,20 +96,20 @@ const AnimatedAddButton = ({ onPress, colors }) => {
     onPress();
   };
 
-  // Создаем более светлый и более темный оттенки
-  const lighterColor = colors.primary + '20'; // Более светлый
-  const darkerColor = colors.primary; // Основной цвет
+  // Создаем цветовую схему для анимации
+  const lighterColor = buttonColor + '20'; // Более светлый
+  const darkerColor = buttonColor; // Основной цвет
 
-  // Интерполяция цвета
-  const animatedBackgroundColor = colorAnim.interpolate({
+  // Интерполяция цвета (если анимация включена)
+  const animatedBackgroundColor = isAnimationEnabled ? colorAnim.interpolate({
     inputRange: [0, 0.5, 1],
     outputRange: [darkerColor, lighterColor, darkerColor],
-  });
+  }) : buttonColor;
 
-  const animatedShadowColor = colorAnim.interpolate({
+  const animatedShadowColor = isAnimationEnabled ? colorAnim.interpolate({
     inputRange: [0, 0.5, 1],
-    outputRange: [colors.primary + '40', colors.primary + '60', colors.primary + '40'],
-  });
+    outputRange: [buttonColor + '40', buttonColor + '60', buttonColor + '40'],
+  }) : buttonColor + '40';
 
   return (
     <Animated.View
@@ -239,10 +264,11 @@ const MainApp = ({
           ) : (
             <>
               {/* АНИМИРОВАННАЯ КНОПКА ДОБАВЛЕНИЯ */}
-              <AnimatedAddButton
-                onPress={onShowAddHabit}
-                colors={colors}
-              />
+            <AnimatedAddButton
+                          onPress={onShowAddHabit}
+                          colors={colors}
+                          settings={settings}
+                        />
 
               {/* КНОПКА АРХИВА */}
               <TouchableOpacity
