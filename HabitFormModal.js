@@ -23,6 +23,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+
 // Импорт констант
 import { 
   THEMES, 
@@ -37,6 +38,37 @@ import {
   HABIT_TYPES,
   MEASUREMENT_UNITS
 } from './constants';
+
+// === КОНФИГУРАЦИЯ АНИМАЦИИ ===
+// 🎯 Эти переменные будут вынесены в настройки приложения в будущем
+const ANIMATION_CONFIG = {
+  // Скорости печати (в миллисекундах)
+  typing: {
+    creation: 15,           // Печать при создании новой карточки
+    editing: 30,             // Печать при редактировании существующей
+    afterEdit: 15,          // Печать после редактирования (в 2 раза быстрее создания)
+  },
+
+  // Скорости удаления (в миллисекундах)
+  deletion: {
+    creation: 8,            // Удаление при создании (базовая скорость)
+    editing: 1,             // Очень быстрое удаление при редактировании
+  },
+
+  // Количество символов за раз
+  charsPerTick: {
+    creation: {
+      min: 1,               // Минимум символов за раз при создании
+      max: 5,               // Максимум символов за раз при создании
+    },
+    editing: {
+      deletion: {
+        min: 1,             // Минимум символов за раз при удалении в редактировании
+        max: 10,             // Максимум символов за раз при удалении в редактировании
+      }
+    }
+  }
+};
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -88,6 +120,9 @@ const HabitFormModal = ({
   // Для отслеживания позиций полей в тексте
   const [fieldPositions, setFieldPositions] = useState({});
   const [textParts, setTextParts] = useState([]);
+
+  // 🆕 НОВОЕ СОСТОЯНИЕ: флаг печати после редактирования
+  const [isAfterEdit, setIsAfterEdit] = useState(false);
 
   // === АНИМАЦИИ ===
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -270,68 +305,126 @@ if (completedFields.has('description')) {
     }
   }, [visible, habit]);
 
-  // Эффект печатания
-  useEffect(() => {
-    if (isTyping && currentCharIndex < fullText.length) {
-      // Разная скорость для создания и редактирования
-      const typingSpeed = habit ? 0.2 : 10; // 1мс для редактирования, 30мс для создания
-      
-      const timeout = setTimeout(() => {
-        setDisplayedText(prev => prev + fullText[currentCharIndex]);
-        setCurrentCharIndex(prev => prev + 1);
-      }, typingSpeed);
-      
-      return () => clearTimeout(timeout);
-    } else if (currentCharIndex >= fullText.length) {
-      setIsTyping(false);
-    }
-  }, [currentCharIndex, fullText, isTyping, habit]);
-
-  // Эффект удаления текста с улучшенной производительностью
+// === 🆕 ОБНОВЛЕННЫЙ ЭФФЕКТ ПЕЧАТАНИЯ ===
 useEffect(() => {
-  if (isDeleting && displayedText.length > deleteTargetIndex) {
-    // Более быстрое и плавное удаление
-    const charsToDelete = displayedText.length - deleteTargetIndex;
-    const deleteSpeed = Math.max(3, Math.min(15, 800 / charsToDelete)); // Быстрее: от 3 до 15мс
-    
+  if (isTyping && currentCharIndex < fullText.length) {
+    // Определяем скорость печати
+    let typingSpeed;
+    if (isAfterEdit) {
+      // После редактирования - в 2 раза быстрее создания
+      typingSpeed = ANIMATION_CONFIG.typing.afterEdit;
+    } else if (habit) {
+      // Редактирование существующей привычки
+      typingSpeed = ANIMATION_CONFIG.typing.editing;
+    } else {
+      // Создание новой привычки
+      typingSpeed = ANIMATION_CONFIG.typing.creation;
+    }
+
+    // Определяем количество символов за раз
+    let charsToAdd;
+    if (habit && !isAfterEdit) {
+      // При обычном редактировании - по 1 символу
+      charsToAdd = 1;
+    } else {
+      // При создании или после редактирования - рандомное количество
+      const config = ANIMATION_CONFIG.charsPerTick.creation;
+      charsToAdd = Math.floor(Math.random() * (config.max - config.min + 1)) + config.min;
+    }
+
     const timeout = setTimeout(() => {
-      setDisplayedText(prev => prev.slice(0, -1));
-    }, deleteSpeed);
-    
+      // Добавляем символы, не превышая длину текста
+      const remainingChars = fullText.length - currentCharIndex;
+      const actualCharsToAdd = Math.min(charsToAdd, remainingChars);
+
+      setDisplayedText(prev => prev + fullText.substr(currentCharIndex, actualCharsToAdd));
+      setCurrentCharIndex(prev => prev + actualCharsToAdd);
+    }, typingSpeed);
+
     return () => clearTimeout(timeout);
-  } else if (isDeleting && displayedText.length <= deleteTargetIndex) {
-    setIsDeleting(false);
-    
-    // Применяем отложенные изменения полей, если они есть
-    if (pendingCompletedFields) {
-      setCompletedFields(pendingCompletedFields);
-      setPendingCompletedFields(null);
+  } else if (currentCharIndex >= fullText.length) {
+    setIsTyping(false);
+    // Сбрасываем флаг после завершения печати
+    if (isAfterEdit) {
+      setIsAfterEdit(false);
     }
   }
-}, [isDeleting, displayedText.length, deleteTargetIndex, pendingCompletedFields]);
+}, [currentCharIndex, fullText, isTyping, habit, isAfterEdit]);
 
-// Отдельный эффект для генерации текста после завершения удаления
+  // === 🆕 ОБНОВЛЕННЫЙ ЭФФЕКТ УДАЛЕНИЯ ===
+  useEffect(() => {
+    if (isDeleting && displayedText.length > deleteTargetIndex) {
+      // Определяем скорость удаления
+      let deleteSpeed;
+      if (habit) {
+        // При редактировании - очень быстрое удаление
+        deleteSpeed = ANIMATION_CONFIG.deletion.editing;
+      } else {
+        // При создании - обычная скорость
+        deleteSpeed = ANIMATION_CONFIG.deletion.creation;
+      }
+
+      // Определяем количество символов для удаления за раз
+      let charsToDelete;
+      if (habit) {
+        // При редактировании - ограниченное количество символов
+        const config = ANIMATION_CONFIG.charsPerTick.editing.deletion;
+        charsToDelete = Math.floor(Math.random() * (config.max - config.min + 1)) + config.min;
+      } else {
+        // При создании - рандомное количество как при печати
+        const config = ANIMATION_CONFIG.charsPerTick.creation;
+        charsToDelete = Math.floor(Math.random() * (config.max - config.min + 1)) + config.min;
+      }
+
+      const timeout = setTimeout(() => {
+        // Удаляем символы, не превышая целевой индекс
+        const currentLength = displayedText.length;
+        const charsCanDelete = currentLength - deleteTargetIndex;
+        const actualCharsToDelete = Math.min(charsToDelete, charsCanDelete);
+
+        setDisplayedText(prev => prev.slice(0, -actualCharsToDelete));
+      }, deleteSpeed);
+
+      return () => clearTimeout(timeout);
+    } else if (isDeleting && displayedText.length <= deleteTargetIndex) {
+      setIsDeleting(false);
+
+      // Применяем отложенные изменения полей, если они есть
+      if (pendingCompletedFields) {
+        setCompletedFields(pendingCompletedFields);
+        setPendingCompletedFields(null);
+      }
+    }
+  }, [isDeleting, displayedText.length, deleteTargetIndex, pendingCompletedFields, habit]);
+
+// === 🆕 ОБНОВЛЕННЫЙ ЭФФЕКТ ГЕНЕРАЦИИ ТЕКСТА ПОСЛЕ УДАЛЕНИЯ ===
 useEffect(() => {
   if (!isDeleting && !isTyping && displayedText.length === deleteTargetIndex && deleteTargetIndex > 0) {
     // Генерируем новый текст и начинаем печатать
     const parts = generateTextParts();
     setTextParts(parts);
-    
+
     let newFullText = '';
     parts.forEach(part => {
       if (part.type === 'text') {
         newFullText += part.content;
       }
     });
-    
+
     setFullText(newFullText);
     setCurrentCharIndex(deleteTargetIndex);
+
+    // 🎯 ВАЖНО: Устанавливаем флаг "после редактирования" для ускоренной печати
+    if (habit) {
+      setIsAfterEdit(true);
+    }
+
     setIsTyping(true);
-    
+
     // Сбрасываем deleteTargetIndex после использования
     setDeleteTargetIndex(0);
   }
-}, [isDeleting, isTyping, displayedText.length, deleteTargetIndex, generateTextParts]);
+}, [isDeleting, isTyping, displayedText.length, deleteTargetIndex, generateTextParts, habit]);
 
   // Обновление текста при изменении формы
   useEffect(() => {
@@ -531,6 +624,7 @@ useEffect(() => {
     setIsDeleting(false);
     setDeleteTargetIndex(0);
     setPendingCompletedFields(null);
+    setIsAfterEdit(false); // 🆕 Сброс нового состояния
     setTextParts([]);
     setFieldPositions({});
   };
@@ -2447,5 +2541,11 @@ selectedTimePreview: {
 },
 
 });
+
+// === ФУНКЦИИ ДЛЯ ЭКСПОРТА КОНФИГУРАЦИИ ===
+export const getAnimationConfig = () => ANIMATION_CONFIG;
+export const updateAnimationConfig = (newConfig) => {
+  Object.assign(ANIMATION_CONFIG, newConfig);
+};
 
 export default HabitFormModal;
