@@ -107,35 +107,193 @@ export const BORDER_RADIUS = {
 
 // === КАТЕГОРИИ ПРИВЫЧЕК ===
 export const HABIT_CATEGORIES = {
-  health: { 
-    label: 'Здоровье', 
-    icon: '💊', 
-    color: '#4CAF50'
+  // Здоровье и фитнес
+  physical_activity: {
+    label: 'Физическая активность',
+    icon: '🏃',
+    color: '#FF5722',
+    description: 'Спорт, зарядка, прогулки'
   },
-  fitness: { 
-    label: 'Фитнес', 
-    icon: '💪', 
-    color: '#FF5722'
+  nutrition: {
+    label: 'Питание',
+    icon: '🥗',
+    color: '#8BC34A',
+    description: 'Здоровое питание, диета'
   },
-  learning: { 
-    label: 'Обучение', 
-    icon: '📚', 
-    color: '#2196F3'
+  hydration: {
+    label: 'Гидратация',
+    icon: '💧',
+    color: '#2196F3',
+    description: 'Питьевой режим, вода'
   },
-  productivity: { 
-    label: 'Продуктивность', 
-    icon: '⚡', 
-    color: '#FF9800'
+  sleep: {
+    label: 'Сон',
+    icon: '😴',
+    color: '#673AB7',
+    description: 'Режим сна, отдых'
   },
-  mindfulness: { 
-    label: 'Осознанность', 
-    icon: '🧘', 
-    color: '#673AB7'
+  mental_health: {
+    label: 'Ментальное здоровье',
+    icon: '🧘',
+    color: '#9C27B0',
+    description: 'Медитация, релаксация'
   },
-  nutrition: { 
-    label: 'Питание', 
-    icon: '🥗', 
-    color: '#8BC34A'
+
+  // Личностный рост
+  learning: {
+    label: 'Обучение',
+    icon: '📖',
+    color: '#2196F3',
+    description: 'Чтение, курсы, развитие'
+  },
+  goals: {
+    label: 'Цели',
+    icon: '🎯',
+    color: '#FF9800',
+    description: 'Достижения, планы'
+  },
+  creativity: {
+    label: 'Креативность',
+    icon: '🧠',
+    color: '#E91E63',
+    description: 'Творчество, идеи'
+  },
+  reflection: {
+    label: 'Рефлексия',
+    icon: '💭',
+    color: '#607D8B',
+    description: 'Дневник, анализ дня'
+  },
+  hobby: {
+    label: 'Хобби',
+    icon: '🎨',
+    color: '#795548',
+    description: 'Увлечения, творчество'
+  },
+
+  // Продуктивность
+  work: {
+    label: 'Работа',
+    icon: '💻',
+    color: '#424242',
+    description: 'Задачи, проекты, карьера'
+  },
+  digital_wellness: {
+    label: 'Цифровое благополучие',
+    icon: '📱',
+    color: '#FF5722',
+    description: 'Экранное время, соцсети'
+  },
+  time_management: {
+    label: 'Тайм-менеджмент',
+    icon: '⏰',
+    color: '#FF9800',
+    description: 'Управление временем'
+  },
+  planning: {
+    label: 'Планирование',
+    icon: '📋',
+    color: '#2196F3',
+    description: 'Организация, списки дел'
+  },
+  focus: {
+    label: 'Фокус',
+    icon: '🔍',
+    color: '#9C27B0',
+    description: 'Концентрация, внимание'
+  },
+
+  // Социальные связи
+  family: {
+    label: 'Семья',
+    icon: '👨‍👩‍👧‍👦',
+    color: '#E91E63',
+    description: 'Время с близкими'
+  },
+  friends: {
+    label: 'Друзья',
+    icon: '👯',
+    color: '#FF9800',
+    description: 'Общение, встречи'
+  },
+  networking: {
+    label: 'Нетворкинг',
+    icon: '🤝',
+    color: '#2196F3',
+    description: 'Новые знакомства'
+  },
+  communication: {
+    label: 'Общение',
+    icon: '💌',
+    color: '#673AB7',
+    description: 'Звонки, переписка'
+  },
+  care_for_others: {
+    label: 'Забота о других',
+    icon: '🎁',
+    color: '#4CAF50',
+    description: 'Помощь, поддержка'
+  },
+
+  // Образ жизни
+  household: {
+    label: 'Быт',
+    icon: '🏠',
+    color: '#795548',
+    description: 'Уборка, порядок в доме'
+  },
+  finances: {
+    label: 'Финансы',
+    icon: '💰',
+    color: '#4CAF50',
+    description: 'Бюджет, накопления'
+  },
+  ecology: {
+    label: 'Экология',
+    icon: '🌱',
+    color: '#8BC34A',
+    description: 'Экологичный образ жизни'
+  },
+  spirituality: {
+    label: 'Духовность',
+    icon: '🙏',
+    color: '#9C27B0',
+    description: 'Практики, саморазвитие'
+  },
+  self_care: {
+    label: 'Самоуход',
+    icon: '💆',
+    color: '#E91E63',
+    description: 'Красота, уход за собой'
+  }
+};
+
+// === ТИПЫ КАТЕГОРИЙ ПРИВЫЧЕК ===
+export const HABIT_CATEGORY_TYPES = {
+  health_fitness: {
+    label: 'Здоровье и фитнес',
+    icon: '💪',
+    categories: ['physical_activity', 'nutrition', 'hydration', 'sleep', 'mental_health']
+  },
+  personal_growth: {
+    label: 'Личностный рост',
+    icon: '📚',
+    categories: ['learning', 'goals', 'creativity', 'reflection', 'hobby']
+  },
+  productivity: {
+    label: 'Продуктивность',
+    icon: '⚡',
+    categories: ['work', 'digital_wellness', 'time_management', 'planning', 'focus']
+  },
+  social_connections: {
+    label: 'Социальные связи',
+    icon: '👥',
+    categories: ['family', 'friends', 'networking', 'communication', 'care_for_others']
+  },
+  lifestyle: {
+    label: 'Образ жизни',
+    icon: '✨',
+    categories: ['household', 'finances', 'ecology', 'spirituality', 'self_care']
   }
 };
 

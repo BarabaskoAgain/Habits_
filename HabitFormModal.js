@@ -31,6 +31,7 @@ import {
   BORDER_RADIUS, 
   TYPOGRAPHY,
   HABIT_CATEGORIES,
+  HABIT_CATEGORY_TYPES,
   HABIT_ICONS,
   HABIT_ICON_CATEGORIES,
   HABIT_COLORS,
@@ -106,8 +107,9 @@ const HabitFormModal = ({
   });
 
   // === СОСТОЯНИЕ СЛАЙДЕРА ЦВЕТОВ И ИКОНОК ===
-  const [currentColorCategory, setCurrentColorCategory] = useState(0);
-    const [currentIconCategory, setCurrentIconCategory] = useState(0);
+const [currentColorCategory, setCurrentColorCategory] = useState(0);
+const [currentIconCategory, setCurrentIconCategory] = useState(0);
+const [currentCategoryType, setCurrentCategoryType] = useState(0);
 
   // === СОСТОЯНИЕ ТЕКСТОВОГО РЕЖИМА ===
   const [currentField, setCurrentField] = useState(null);
@@ -143,6 +145,10 @@ const HabitFormModal = ({
   // === РЕФЫ ДЛЯ PICKER'ОВ ВРЕМЕНИ ===
   const hoursScrollRef = useRef(null);
   const minutesScrollRef = useRef(null);
+
+  // == РЕФ ДЛЯ ТИПОВ ПРИВЫЧЕК ==
+  const categoryScrollRef = useRef(null);
+
 
   const colors = THEMES[theme] ? THEMES[theme][isDarkMode ? 'dark' : 'light'] : THEMES.blue.light;
 
@@ -1016,36 +1022,116 @@ const fieldsOrder = ['name', 'description', 'category', 'type', 'weightGoal', 'd
   </View>
 )}
         
-          {/* Селектор для категории */}
-          {currentField === 'category' && (
-            <View style={styles.selectorContent}>
-              <Text style={[styles.selectorTitle, { color: colors.text }]}>
-                Выберите категорию
-              </Text>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {Object.entries(HABIT_CATEGORIES).map(([key, category]) => (
-                  <TouchableOpacity
-                    key={key}
-                    style={[
-                      styles.categoryOption,
-                      {
-                        backgroundColor: colors.background,
-                        borderColor: colors.border
-                      }
-                    ]}
-                    onPress={() => handleFieldSelect(key)}
-                  >
-                    <Text style={styles.categoryIcon}>{category.icon}</Text>
-                    <View style={styles.categoryInfo}>
-                      <Text style={[styles.categoryName, { color: colors.text }]}>
-                        {category.label}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          )}
+ {/* Селектор для категории */}
+ {currentField === 'category' && (
+   <View style={styles.selectorContent}>
+     <Text style={[styles.selectorTitle, { color: colors.text }]}>
+       Выберите категорию
+     </Text>
+     <Text style={[styles.selectorSubtitle, { color: colors.textSecondary }]}>
+       Выберите тип привычки из популярных категорий
+     </Text>
+
+     {/* Заголовок текущего типа категорий */}
+     <View style={[styles.categorySliderHeader, { backgroundColor: colors.primary + '15' }]}>
+       <Text style={styles.categoryTypeIcon}>
+         {Object.values(HABIT_CATEGORY_TYPES)[currentCategoryType]?.icon}
+       </Text>
+       <Text style={[styles.categorySliderTitle, { color: colors.text }]}>
+         {Object.values(HABIT_CATEGORY_TYPES)[currentCategoryType]?.label}
+       </Text>
+     </View>
+
+     {/* Контейнер слайдера СО СВАЙПАМИ */}
+     <View style={styles.categorySliderContainer}>
+       <ScrollView
+         horizontal
+         pagingEnabled
+         showsHorizontalScrollIndicator={false}
+         snapToInterval={SCREEN_WIDTH * 0.9 - 32} // Ширина контейнера минус отступы
+         decelerationRate="fast"
+         contentContainerStyle={styles.categoryScrollContent}
+         onMomentumScrollEnd={(event) => {
+           const offsetX = event.nativeEvent.contentOffset.x;
+           const pageWidth = SCREEN_WIDTH * 0.9 - 32;
+           const newIndex = Math.round(offsetX / pageWidth);
+           const maxIndex = Object.keys(HABIT_CATEGORY_TYPES).length - 1;
+           const clampedIndex = Math.max(0, Math.min(newIndex, maxIndex));
+
+           if (clampedIndex !== currentCategoryType) {
+             setCurrentCategoryType(clampedIndex);
+           }
+         }}
+         ref={categoryScrollRef}
+       >
+         {Object.values(HABIT_CATEGORY_TYPES).map((categoryGroup, groupIndex) => (
+           <View
+             key={groupIndex}
+             style={[
+               styles.categorySliderContent,
+               { width: SCREEN_WIDTH * 0.9 - 32 }
+             ]}
+           >
+             <View style={styles.categoriesGrid}>
+               {categoryGroup.categories.map(categoryKey => {
+                 const category = HABIT_CATEGORIES[categoryKey];
+                 return (
+                   <TouchableOpacity
+                     key={categoryKey}
+                     style={[
+                       styles.categoryOptionCompact,
+                       {
+                         backgroundColor: colors.background,
+                         borderColor: colors.border
+                       }
+                     ]}
+                     onPress={() => handleFieldSelect(categoryKey)}
+                   >
+                     <Text style={styles.categoryIcon}>{category.icon}</Text>
+                     <View style={styles.categoryInfo}>
+                       <Text style={[styles.categoryName, { color: colors.text }]}>
+                         {category.label}
+                       </Text>
+                       <Text style={[styles.categoryDescription, { color: colors.textSecondary }]}>
+                         {category.description}
+                       </Text>
+                     </View>
+                   </TouchableOpacity>
+                 );
+               })}
+             </View>
+           </View>
+         ))}
+       </ScrollView>
+     </View>
+
+     {/* Индикаторы страниц (обновленные) */}
+     <View style={styles.categorySliderIndicators}>
+       {Object.keys(HABIT_CATEGORY_TYPES).map((_, index) => (
+         <TouchableOpacity
+           key={index}
+           style={[
+             styles.categorySliderDot,
+             {
+               backgroundColor: index === currentCategoryType
+                 ? colors.primary
+                 : colors.border
+             }
+           ]}
+           onPress={() => {
+             // Программный переход к странице
+             const pageWidth = SCREEN_WIDTH * 0.9 - 32;
+             categoryScrollRef.current?.scrollTo({
+               x: index * pageWidth,
+               animated: true
+             });
+             setCurrentCategoryType(index);
+           }}
+         />
+       ))}
+     </View>
+   </View>
+ )}
           
           {/* Селектор для типа */}
           {currentField === 'type' && (
@@ -2564,6 +2650,87 @@ selectedTimePreview: {
   fontSize: 16,
   fontWeight: '600',
   marginBottom: SPACING.md,
+},
+
+// === СТИЛИ СЛАЙДЕРА КАТЕГОРИЙ ===
+categorySliderHeader: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginBottom: SPACING.lg,
+  padding: SPACING.md,
+  borderRadius: BORDER_RADIUS.md,
+},
+
+categoryTypeIcon: {
+  fontSize: 24,
+  marginRight: SPACING.sm,
+},
+
+categorySliderTitle: {
+  ...TYPOGRAPHY.h4,
+  fontWeight: '600',
+},
+
+// Изменить categorySliderContainer
+categorySliderContainer: {
+
+  marginBottom: SPACING.lg,
+  minHeight: 280,
+},
+
+categorySliderArrow: {
+  width: 44,
+  height: 44,
+  borderRadius: BORDER_RADIUS.full,
+  justifyContent: 'center',
+  alignItems: 'center',
+  elevation: 2,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.2,
+  shadowRadius: 2,
+},
+
+categorySliderContent: {
+  flex: 1,
+  marginHorizontal: SPACING.md,
+},
+
+categoriesGrid: {
+  gap: SPACING.sm,
+},
+
+categoryOptionCompact: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  padding: SPACING.md,
+  borderRadius: BORDER_RADIUS.md,
+  borderWidth: 1,
+  marginBottom: SPACING.sm,
+},
+
+categoryDescription: {
+  ...TYPOGRAPHY.caption,
+  marginTop: 2,
+},
+
+categorySliderIndicators: {
+  flexDirection: 'row',
+  justifyContent: 'center',
+  alignItems: 'center',
+  gap: SPACING.sm,
+},
+
+categorySliderDot: {
+  width: 8,
+  height: 8,
+  borderRadius: 4,
+},
+
+categoryScrollContent: {
+  flexDirection: 'row',
+  alignItems: 'center',
 },
 
 });
