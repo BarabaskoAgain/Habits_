@@ -1690,11 +1690,6 @@ const isFormComplete = () => {
     // Частота требуется для всех типов
     requiredFields.push('frequency');
     
-    // Добавим логирование для отладки
-    console.log('Required fields:', requiredFields);
-    console.log('Completed fields:', Array.from(completedFields));
-    console.log('Form is complete:', requiredFields.every(field => completedFields.has(field)));
-    
     return requiredFields.every(field => completedFields.has(field));
   };
 
