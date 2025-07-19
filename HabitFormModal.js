@@ -147,8 +147,8 @@ const [currentCategoryType, setCurrentCategoryType] = useState(0);
   const minutesScrollRef = useRef(null);
 
   // == РЕФ ДЛЯ ТИПОВ ПРИВЫЧЕК ==
-  const categoryScrollRef = useRef(null);
-
+  const categoryScrollRef = useRef(null); // СКРОЛЛ ДЛЯ КАТЕГОРИЙ
+const colorScrollRef = useRef(null); // СКРОЛ ДЛЯ ЦВЕТОВ
 
   const colors = THEMES[theme] ? THEMES[theme][isDarkMode ? 'dark' : 'light'] : THEMES.blue.light;
 
@@ -1361,106 +1361,126 @@ const fieldsOrder = ['name', 'description', 'category', 'type', 'weightGoal', 'd
           )}
           
     {/* Селектор для цвета */}
-           {currentField === 'color' && (
-             <View style={styles.selectorContent}>
-               <Text style={[styles.selectorTitle, { color: colors.text }]}>
-                 Выберите цвет
-               </Text>
+    {currentField === 'color' && (
+      <View style={styles.selectorContent}>
+        <Text style={[styles.selectorTitle, { color: colors.text }]}>
+          Выберите цвет
+        </Text>
+        <Text style={[styles.selectorSubtitle, { color: colors.textSecondary }]}>
+          Выберите цвет привычки из популярных палитр
+        </Text>
 
-               {/* Заголовок текущей категории */}
-               <View style={styles.colorSliderHeader}>
-                 <Text style={styles.colorCategoryIcon}>
-                   {Object.values(HABIT_COLOR_CATEGORIES)[currentColorCategory]?.icon}
-                 </Text>
-                 <Text style={[styles.colorSliderCategoryTitle, { color: colors.text }]}>
-                   {Object.values(HABIT_COLOR_CATEGORIES)[currentColorCategory]?.label}
-                 </Text>
-               </View>
+        {/* Заголовок текущей категории цветов */}
+        <View style={[styles.colorSliderHeader, { backgroundColor: colors.primary + '15' }]}>
+          <Text style={styles.colorCategoryIcon}>
+            {Object.values(HABIT_COLOR_CATEGORIES)[currentColorCategory]?.icon}
+          </Text>
+          <Text style={[styles.colorSliderTitle, { color: colors.text }]}>
+            {Object.values(HABIT_COLOR_CATEGORIES)[currentColorCategory]?.label}
+          </Text>
+        </View>
 
-               {/* Контейнер слайдера */}
-               <View style={styles.colorSliderContainer}>
-                 {/* Стрелка влево */}
-                 <TouchableOpacity
-                   style={[
-                     styles.colorSliderArrow,
-                     {
-                       backgroundColor: colors.surface,
-                       opacity: currentColorCategory === 0 ? 0.3 : 1
-                     }
-                   ]}
-                   onPress={() => {
-                     if (currentColorCategory > 0) {
-                       setCurrentColorCategory(currentColorCategory - 1);
-                     }
-                   }}
-                   disabled={currentColorCategory === 0}
-                 >
-                   <Ionicons name="chevron-back" size={20} color={colors.text} />
-                 </TouchableOpacity>
+        {/* Контейнер слайдера СО СВАЙПАМИ */}
+        <View style={styles.colorSliderContainer}>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={SCREEN_WIDTH * 0.9 - 32}
+            decelerationRate="fast"
+            contentContainerStyle={styles.colorScrollContent}
+            onMomentumScrollEnd={(event) => {
+              const offsetX = event.nativeEvent.contentOffset.x;
+              const pageWidth = SCREEN_WIDTH * 0.9 - 32;
+              const newIndex = Math.round(offsetX / pageWidth);
+              const maxIndex = Object.keys(HABIT_COLOR_CATEGORIES).length - 1;
+              const clampedIndex = Math.max(0, Math.min(newIndex, maxIndex));
 
-                 {/* Сетка цветов текущей категории */}
-                 <View style={styles.colorSliderContent}>
-                   <View style={styles.colorCategoryGrid}>
-                     {Object.values(HABIT_COLOR_CATEGORIES)[currentColorCategory]?.colors.map(color => (
-                       <TouchableOpacity
-                         key={color}
-                         style={[
-                           styles.colorOptionCompact,
-                           {
-                             backgroundColor: color,
-                             borderWidth: formData.color === color ? 3 : 0,
-                             borderColor: formData.color === color ? '#ffffff' : 'transparent'
-                           }
-                         ]}
-                         onPress={() => handleFieldSelect(color)}
-                       >
-                         {formData.color === color && (
-                           <Ionicons name="checkmark" size={20} color="#ffffff" />
-                         )}
-                       </TouchableOpacity>
-                     ))}
-                   </View>
-                 </View>
+              if (clampedIndex !== currentColorCategory) {
+                setCurrentColorCategory(clampedIndex);
+              }
+            }}
+            ref={colorScrollRef}
+          >
+            {Object.values(HABIT_COLOR_CATEGORIES).map((colorGroup, groupIndex) => (
+              <View
+                key={groupIndex}
+                style={[
+                  styles.colorSliderContent,
+                  { width: SCREEN_WIDTH * 0.9 - 32 }
+                ]}
+              >
+                <View style={styles.rotatedGridContainer}>
+                  <View style={styles.rotatedGrid}>
+                    {colorGroup.colors.slice(0, 9).map((color, index) => {
+                      // Позиции для сетки 3x3
+                      const positions = [
+                        { top: 0, left: 50 },      // 0,1
+                        { top: 0, left: 100 },     // 0,2
+                        { top: 0, left: 150 },     // 0,3
+                        { top: 50, left: 0 },      // 1,0
+                        { top: 50, left: 50 },     // 1,1
+                        { top: 50, left: 100 },    // 1,2
+                        { top: 100, left: 0 },     // 2,0
+                        { top: 100, left: 50 },    // 2,1
+                        { top: 100, left: 100 },   // 2,2
+                      ];
 
-                 {/* Стрелка вправо */}
-                 <TouchableOpacity
-                   style={[
-                     styles.colorSliderArrow,
-                     {
-                       backgroundColor: colors.surface,
-                       opacity: currentColorCategory === Object.keys(HABIT_COLOR_CATEGORIES).length - 1 ? 0.3 : 1
-                     }
-                   ]}
-                   onPress={() => {
-                     if (currentColorCategory < Object.keys(HABIT_COLOR_CATEGORIES).length - 1) {
-                       setCurrentColorCategory(currentColorCategory + 1);
-                     }
-                   }}
-                   disabled={currentColorCategory === Object.keys(HABIT_COLOR_CATEGORIES).length - 1}
-                 >
-                   <Ionicons name="chevron-forward" size={20} color={colors.text} />
-                 </TouchableOpacity>
-               </View>
+                      return (
+                        <TouchableOpacity
+                          key={color}
+                          style={[
+                            styles.colorCircleRotated,
+                            {
+                              backgroundColor: color,
+                              borderWidth: formData.color === color ? 3 : 0,
+                              borderColor: formData.color === color ? '#ffffff' : 'transparent',
+                              top: positions[index]?.top || 0,
+                              left: positions[index]?.left || 0,
+                            }
+                          ]}
+                          onPress={() => handleFieldSelect(color)}
+                        >
+                          {formData.color === color && (
+                            <Ionicons name="checkmark" size={18} color="#ffffff" />
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
 
-               {/* Индикаторы страниц */}
-               <View style={styles.colorSliderIndicators}>
-                 {Object.keys(HABIT_COLOR_CATEGORIES).map((_, index) => (
-                   <TouchableOpacity
-                     key={index}
-                     style={[
-                       styles.colorSliderDot,
-                       {
-                         backgroundColor: index === currentColorCategory
-                           ? colors.primary
-                           : colors.border
-                       }
-                     ]}
-                     onPress={() => setCurrentColorCategory(index)}
-                   />
-                 ))}
-               </View>
-             </View>
-           )}
+        {/* Индикаторы страниц (обновленные) */}
+        <View style={styles.colorSliderIndicators}>
+          {Object.keys(HABIT_COLOR_CATEGORIES).map((_, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.colorSliderDot,
+                {
+                  backgroundColor: index === currentColorCategory
+                    ? colors.primary
+                    : colors.border
+                }
+              ]}
+              onPress={() => {
+                // Программный переход к странице
+                const pageWidth = SCREEN_WIDTH * 0.9 - 32;
+                colorScrollRef.current?.scrollTo({
+                  x: index * pageWidth,
+                  animated: true
+                });
+                setCurrentColorCategory(index);
+              }}
+            />
+          ))}
+        </View>
+      </View>
+    )}
           
           {/* Селектор для иконки */}
           {currentField === 'icon' && (
@@ -2263,11 +2283,7 @@ selectorSubtitle: {
     fontWeight: '600',
   },
 
-  colorSliderContent: {
-    flex: 1,
-    marginHorizontal: SPACING.md,
-    paddingHorizontal: SPACING.sm,
-  },
+
 
   colorCategoryGrid: {
       width: 220,
@@ -2293,71 +2309,79 @@ selectorSubtitle: {
       marginBottom: SPACING.sm,
     },
 
-  // Стили слайдера цветов
-  colorSliderHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.lg,
-  },
+// Стили слайдера цветов
+colorSliderHeader: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginBottom: SPACING.lg,
+  padding: SPACING.md,
+  borderRadius: BORDER_RADIUS.md,
+},
 
-  colorSliderCategoryTitle: {
-    ...TYPOGRAPHY.h4,
-    fontWeight: '600',
-    marginLeft: SPACING.sm,
-  },
+colorCategoryIcon: {
+  fontSize: 24,
+  marginRight: SPACING.sm,
+},
 
-  colorSliderContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.lg,
-    minHeight: 140, // фиксированная высота для стабильности
-  },
+colorSliderTitle: {
+  ...TYPOGRAPHY.h4,
+  fontWeight: '600',
+},
 
-  colorSliderArrow: {
-    width: 44,
-    height: 44,
-    borderRadius: BORDER_RADIUS.full,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
+colorSliderContainer: {
+  marginBottom: SPACING.lg,
+  minHeight: 300,
+},
 
-  colorSliderArrow: {
-    width: 44,
-    height: 44,
-    borderRadius: BORDER_RADIUS.full,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
+colorScrollContent: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
 
-  colorSliderContent: {
-    flex: 1,
-    marginHorizontal: SPACING.md,
-  },
+colorSliderContent: {
+  flex: 1,
+  paddingHorizontal: SPACING.sm,
+  paddingVertical: 40, // ← ДОБАВИТЬ! Отступы сверху и снизу
+  justifyContent: 'center',
+  alignItems: 'center',
+  minHeight: 260,
+},
 
-  colorSliderIndicators: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
+colorCategoryGrid: {
+  flexDirection: 'row',
+  flexWrap: 'wrap',
+  justifyContent: 'space-between',
+  gap: SPACING.md,
+  paddingHorizontal: SPACING.sm,
+},
 
-  colorSliderDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
+colorOptionCompact: {
+  width: 50,
+  height: 50,
+  borderRadius: BORDER_RADIUS.full,
+  justifyContent: 'center',
+  alignItems: 'center',
+  elevation: 4,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 3 },
+  shadowOpacity: 0.3,
+  shadowRadius: 6,
+  marginBottom: SPACING.sm,
+},
+
+colorSliderIndicators: {
+  flexDirection: 'row',
+  justifyContent: 'center',
+  alignItems: 'center',
+  gap: SPACING.sm,
+},
+
+colorSliderDot: {
+  width: 8,
+  height: 8,
+  borderRadius: 4,
+},
   
   // Иконки
   iconGrid: {
@@ -2729,6 +2753,44 @@ categorySliderDot: {
 categoryScrollContent: {
   flexDirection: 'row',
   alignItems: 'center',
+},
+rotatedGridContainer: {
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  width: '100%',
+  height: 240,
+  paddingTop: 50,    // ← Больше места сверху
+  paddingBottom: 50, // ← Больше места снизу
+  marginVertical: SPACING.md,
+  overflow: 'visible', // ← Разрешить выход за границы
+},
+
+// Если отступы не помогают - уменьши сетку:
+rotatedGrid: {
+  width: 120, // Уменьшить с 150 до 120
+  height: 120,
+  position: 'relative',
+  flexDirection: 'row',
+  flexWrap: 'wrap',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  transform: [{ rotate: '45deg' }],
+},
+
+colorCircleRotated: {
+  position: 'absolute',
+  width: 40,
+  height: 40,
+  borderRadius: BORDER_RADIUS.full,
+  justifyContent: 'center',
+  alignItems: 'center',
+  elevation: 4,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 3 },
+  shadowOpacity: 0.3,
+  shadowRadius: 6,
+  transform: [{ rotate: '-45deg' }],
 },
 
 });
