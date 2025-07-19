@@ -1402,55 +1402,55 @@ const fieldsOrder = ['name', 'description', 'category', 'type', 'weightGoal', 'd
             }}
             ref={colorScrollRef}
           >
-            {Object.values(HABIT_COLOR_CATEGORIES).map((colorGroup, groupIndex) => (
-              <View
-                key={groupIndex}
-                style={[
-                  styles.colorSliderContent,
-                  { width: SCREEN_WIDTH * 0.9 - 32 }
-                ]}
-              >
-                <View style={styles.rotatedGridContainer}>
-                  <View style={styles.rotatedGrid}>
-                    {colorGroup.colors.slice(0, 9).map((color, index) => {
-                      // Позиции для сетки 3x3
-                      const positions = [
-                        { top: 0, left: 50 },      // 0,1
-                        { top: 0, left: 100 },     // 0,2
-                        { top: 0, left: 150 },     // 0,3
-                        { top: 50, left: 0 },      // 1,0
-                        { top: 50, left: 50 },     // 1,1
-                        { top: 50, left: 100 },    // 1,2
-                        { top: 100, left: 0 },     // 2,0
-                        { top: 100, left: 50 },    // 2,1
-                        { top: 100, left: 100 },   // 2,2
-                      ];
+                {Object.values(HABIT_COLOR_CATEGORIES).map((colorGroup, groupIndex) => (
+                  <View
+                    key={groupIndex}
+                    style={[
+                      styles.colorSliderContent,
+                      { width: SCREEN_WIDTH * 0.9 - 32 }
+                    ]}
+                  >
+                    <View style={styles.rotatedGridContainer}>
+                      <View style={styles.rotatedGrid}>
+                        {colorGroup.colors.slice(0, 9).map((color, index) => {
+                          // Позиции для сетки 3x3
+                    const positions = [
+                      { top: 80, left: 80 },   // 0 - центр
+                      { top: 20, left: 80 },   // 1 - верх (расстояние 60px)
+                      { top: 50, left: 110 },  // 2 - верх-право
+                      { top: 80, left: 140 },  // 3 - право (расстояние 60px)
+                      { top: 110, left: 110 }, // 4 - низ-право
+                      { top: 140, left: 80 },  // 5 - низ (расстояние 60px)
+                      { top: 110, left: 50 },  // 6 - низ-лево
+                      { top: 80, left: 20 },   // 7 - лево (расстояние 60px)
+                      { top: 50, left: 50 },   // 8 - верх-лево
+                    ];
 
-                      return (
-                        <TouchableOpacity
-                          key={color}
-                          style={[
-                            styles.colorCircleRotated,
-                            {
-                              backgroundColor: color,
-                              borderWidth: formData.color === color ? 3 : 0,
-                              borderColor: formData.color === color ? '#ffffff' : 'transparent',
-                              top: positions[index]?.top || 0,
-                              left: positions[index]?.left || 0,
-                            }
-                          ]}
-                          onPress={() => handleFieldSelect(color)}
-                        >
-                          {formData.color === color && (
-                            <Ionicons name="checkmark" size={18} color="#ffffff" />
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })}
+                          return (
+                            <TouchableOpacity
+                              key={color}
+                              style={[
+                                styles.colorCircleRotated,
+                                {
+                                  backgroundColor: color,
+                                  borderWidth: formData.color === color ? 3 : 0,
+                                  borderColor: formData.color === color ? '#ffffff' : 'transparent',
+                                  top: positions[index]?.top || 0,
+                                  left: positions[index]?.left || 0,
+                                }
+                              ]}
+                              onPress={() => handleFieldSelect(color)}
+                            >
+                              {formData.color === color && (
+                                <Ionicons name="checkmark" size={18} color="#ffffff" />
+                              )}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
                   </View>
-                </View>
-              </View>
-            ))}
+                ))}
           </ScrollView>
         </View>
 
@@ -2759,29 +2759,24 @@ rotatedGridContainer: {
   justifyContent: 'center',
   alignItems: 'center',
   width: '100%',
-  height: 240,
-  paddingTop: 50,    // ← Больше места сверху
-  paddingBottom: 50, // ← Больше места снизу
+  height: 360,  // Еще больше высоты для новых размеров
+  paddingVertical: SPACING.lg,
   marginVertical: SPACING.md,
-  overflow: 'visible', // ← Разрешить выход за границы
+  overflow: 'visible',
 },
 
-// Если отступы не помогают - уменьши сетку:
 rotatedGrid: {
-  width: 120, // Уменьшить с 150 до 120
-  height: 120,
+  width: 220,   // Увеличиваем контейнер для больших расстояний
+  height: 220,  // Увеличиваем контейнер
   position: 'relative',
-  flexDirection: 'row',
-  flexWrap: 'wrap',
-  justifyContent: 'space-between',
+  justifyContent: 'center',
   alignItems: 'center',
-  transform: [{ rotate: '45deg' }],
 },
 
 colorCircleRotated: {
   position: 'absolute',
-  width: 40,
-  height: 40,
+  width: 48,    // Увеличиваем на 20% (40 * 1.2 = 48)
+  height: 48,   // Увеличиваем на 20%
   borderRadius: BORDER_RADIUS.full,
   justifyContent: 'center',
   alignItems: 'center',
@@ -2790,7 +2785,6 @@ colorCircleRotated: {
   shadowOffset: { width: 0, height: 3 },
   shadowOpacity: 0.3,
   shadowRadius: 6,
-  transform: [{ rotate: '-45deg' }],
 },
 
 });
