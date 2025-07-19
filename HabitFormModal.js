@@ -1048,29 +1048,27 @@ const fieldsOrder = ['name', 'description', 'category', 'type', 'weightGoal', 'd
          horizontal
          pagingEnabled
          showsHorizontalScrollIndicator={false}
-         snapToInterval={SCREEN_WIDTH * 0.9 - 32} // Ширина контейнера минус отступы
+        snapToInterval={SCREEN_WIDTH * 0.9 - 32} // Модальное окно (90% ширины) минус padding selectorContent (16*2=32)
          decelerationRate="fast"
          contentContainerStyle={styles.categoryScrollContent}
-         onMomentumScrollEnd={(event) => {
-           const offsetX = event.nativeEvent.contentOffset.x;
-           const pageWidth = SCREEN_WIDTH * 0.9 - 32;
-           const newIndex = Math.round(offsetX / pageWidth);
-           const maxIndex = Object.keys(HABIT_CATEGORY_TYPES).length - 1;
-           const clampedIndex = Math.max(0, Math.min(newIndex, maxIndex));
+      onMomentumScrollEnd={(event) => {
+        const offsetX = event.nativeEvent.contentOffset.x;
+        const pageWidth = SCREEN_WIDTH * 0.9 - 32;        const newIndex = Math.round(offsetX / pageWidth);
+        const maxIndex = Object.keys(HABIT_CATEGORY_TYPES).length - 1;
+        const clampedIndex = Math.max(0, Math.min(newIndex, maxIndex));
 
-           if (clampedIndex !== currentCategoryType) {
-             setCurrentCategoryType(clampedIndex);
-           }
-         }}
+        if (clampedIndex !== currentCategoryType) {
+          setCurrentCategoryType(clampedIndex);
+        }
+      }}
          ref={categoryScrollRef}
        >
          {Object.values(HABIT_CATEGORY_TYPES).map((categoryGroup, groupIndex) => (
            <View
              key={groupIndex}
-             style={[
-               styles.categorySliderContent,
-               { width: SCREEN_WIDTH * 0.9 - 32 }
-             ]}
+           style={[
+             styles.categorySliderContent,
+             { width: SCREEN_WIDTH * 0.9 - 32 }           ]}
            >
              <View style={styles.categoriesGrid}>
                {categoryGroup.categories.map(categoryKey => {
@@ -1118,15 +1116,15 @@ const fieldsOrder = ['name', 'description', 'category', 'type', 'weightGoal', 'd
                  : colors.border
              }
            ]}
-           onPress={() => {
-             // Программный переход к странице
-             const pageWidth = SCREEN_WIDTH * 0.9 - 32;
-             categoryScrollRef.current?.scrollTo({
-               x: index * pageWidth,
-               animated: true
-             });
-             setCurrentCategoryType(index);
-           }}
+      onPress={() => {
+        // Программный переход к странице
+        const pageWidth = SCREEN_WIDTH * 0.9 - 32;
+        categoryScrollRef.current?.scrollTo({
+          x: index * pageWidth,
+          animated: true
+        });
+        setCurrentCategoryType(index);
+      }}
          />
        ))}
      </View>
@@ -2694,7 +2692,7 @@ categorySliderArrow: {
 
 categorySliderContent: {
   flex: 1,
-  marginHorizontal: SPACING.md,
+  paddingHorizontal: SPACING.md,
 },
 
 categoriesGrid: {
