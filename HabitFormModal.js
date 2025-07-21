@@ -1412,41 +1412,36 @@ const fieldsOrder = ['name', 'description', 'category', 'type', 'weightGoal', 'd
                   >
                     <View style={styles.rotatedGridContainer}>
                       <View style={styles.rotatedGrid}>
-                        {colorGroup.colors.slice(0, 9).map((color, index) => {
-                          // Позиции для сетки 3x3
-                    const positions = [
-                      { top: 80, left: 80 },   // 0 - центр
-                      { top: 20, left: 80 },   // 1 - верх (расстояние 60px)
-                      { top: 50, left: 110 },  // 2 - верх-право
-                      { top: 80, left: 140 },  // 3 - право (расстояние 60px)
-                      { top: 110, left: 110 }, // 4 - низ-право
-                      { top: 140, left: 80 },  // 5 - низ (расстояние 60px)
-                      { top: 110, left: 50 },  // 6 - низ-лево
-                      { top: 80, left: 20 },   // 7 - лево (расстояние 60px)
-                      { top: 50, left: 50 },   // 8 - верх-лево
-                    ];
 
-                          return (
-                            <TouchableOpacity
-                              key={color}
-                              style={[
-                                styles.colorCircleRotated,
-                                {
-                                  backgroundColor: color,
-                                  borderWidth: formData.color === color ? 3 : 0,
-                                  borderColor: formData.color === color ? '#ffffff' : 'transparent',
-                                  top: positions[index]?.top || 0,
-                                  left: positions[index]?.left || 0,
-                                }
-                              ]}
-                              onPress={() => handleFieldSelect(color)}
-                            >
-                              {formData.color === color && (
-                                <Ionicons name="checkmark" size={18} color="#ffffff" />
-                              )}
-                            </TouchableOpacity>
-                          );
-                        })}
+                  {colorGroup.colors.slice(0, 9).map((color, index) => {
+                    // ПРАВИЛЬНАЯ сетка 3x3: строка и колонка
+                    const row = Math.floor(index / 3); // 0,0,0,1,1,1,2,2,2
+                    const col = index % 3;             // 0,1,2,0,1,2,0,1,2
+
+                    // Размеры: контейнер 200x200, кружки 44x44
+                    const cellSize = 80; // 200/3 ≈ 66
+                    const circleSize = 58;
+                    const offset = (cellSize - circleSize) / 2; // центрирование в ячейке
+
+                    return (
+                   <TouchableOpacity
+                     key={color}
+                     style={[
+                       styles.colorCircleRotated,
+                       {
+                         backgroundColor: color,
+                         borderWidth: formData.color === color ? 3 : 0,
+                         borderColor: formData.color === color ? '#ffffff' : 'transparent',
+                         top: row * cellSize + offset,
+                         left: col * cellSize + offset,
+                       }
+                     ]}
+                     onPress={() => handleFieldSelect(color)}
+                   >
+                   </TouchableOpacity>
+                    );
+                  })}
+
                       </View>
                     </View>
                   </View>
@@ -2375,6 +2370,9 @@ colorSliderIndicators: {
   justifyContent: 'center',
   alignItems: 'center',
   gap: SPACING.sm,
+  paddingHorizontal: SPACING.md,  // Добавил отступы
+  paddingBottom: SPACING.sm,      // Добавил отступ снизу
+  marginTop: SPACING.xs,          // Добавил отступ сверху
 },
 
 colorSliderDot: {
@@ -2754,29 +2752,28 @@ categoryScrollContent: {
   flexDirection: 'row',
   alignItems: 'center',
 },
+
+
 rotatedGridContainer: {
-  display: 'flex',
   justifyContent: 'center',
   alignItems: 'center',
   width: '100%',
-  height: 360,  // Еще больше высоты для новых размеров
-  paddingVertical: SPACING.lg,
-  marginVertical: SPACING.md,
-  overflow: 'visible',
+  height: 300,  // Увеличил с 280 до 300 для больших кружков
+  paddingVertical: SPACING.xs,  // Уменьшил с SPACING.sm до SPACING.xs
+  marginVertical: SPACING.xs,   // Уменьшил с SPACING.sm до SPACING.xs
 },
 
 rotatedGrid: {
-  width: 220,   // Увеличиваем контейнер для больших расстояний
-  height: 220,  // Увеличиваем контейнер
+  width: 240,   // Увеличил с 220 до 240
+  height: 240,  // Увеличил с 220 до 240
+  transform: [{ rotate: '45deg' }],
   position: 'relative',
-  justifyContent: 'center',
-  alignItems: 'center',
 },
 
 colorCircleRotated: {
   position: 'absolute',
-  width: 48,    // Увеличиваем на 20% (40 * 1.2 = 48)
-  height: 48,   // Увеличиваем на 20%
+  width: 58,    // Увеличил с 50 до 58
+  height: 58,   // Увеличил с 50 до 58
   borderRadius: BORDER_RADIUS.full,
   justifyContent: 'center',
   alignItems: 'center',
