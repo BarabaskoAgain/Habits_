@@ -149,6 +149,7 @@ const [currentCategoryType, setCurrentCategoryType] = useState(0);
   // == РЕФ ДЛЯ ТИПОВ ПРИВЫЧЕК ==
   const categoryScrollRef = useRef(null); // СКРОЛЛ ДЛЯ КАТЕГОРИЙ
 const colorScrollRef = useRef(null); // СКРОЛ ДЛЯ ЦВЕТОВ
+const iconScrollRef = useRef(null); // ← СКРОЛЛ ДЛЯ ИКОНОК
 
   const colors = THEMES[theme] ? THEMES[theme][isDarkMode ? 'dark' : 'light'] : THEMES.blue.light;
 
@@ -1051,16 +1052,18 @@ const fieldsOrder = ['name', 'description', 'category', 'type', 'weightGoal', 'd
         snapToInterval={SCREEN_WIDTH * 0.9 - 32} // Модальное окно (90% ширины) минус padding selectorContent (16*2=32)
          decelerationRate="fast"
          contentContainerStyle={styles.categoryScrollContent}
-      onMomentumScrollEnd={(event) => {
-        const offsetX = event.nativeEvent.contentOffset.x;
-        const pageWidth = SCREEN_WIDTH * 0.9 - 32;        const newIndex = Math.round(offsetX / pageWidth);
-        const maxIndex = Object.keys(HABIT_CATEGORY_TYPES).length - 1;
-        const clampedIndex = Math.max(0, Math.min(newIndex, maxIndex));
+            onScroll={(event) => {
+              const offsetX = event.nativeEvent.contentOffset.x;
+              const pageWidth = SCREEN_WIDTH * 0.9 - 32;
+              const newIndex = Math.round(offsetX / pageWidth);
+              const maxIndex = Object.keys(HABIT_CATEGORY_TYPES).length - 1;
+              const clampedIndex = Math.max(0, Math.min(newIndex, maxIndex));
 
-        if (clampedIndex !== currentCategoryType) {
-          setCurrentCategoryType(clampedIndex);
-        }
-      }}
+              if (clampedIndex !== currentCategoryType) {
+                setCurrentCategoryType(clampedIndex);
+              }
+            }}
+            scrollEventThrottle={16}
          ref={categoryScrollRef}
        >
          {Object.values(HABIT_CATEGORY_TYPES).map((categoryGroup, groupIndex) => (
@@ -1382,14 +1385,14 @@ const fieldsOrder = ['name', 'description', 'category', 'type', 'weightGoal', 'd
 
         {/* Контейнер слайдера СО СВАЙПАМИ */}
         <View style={styles.colorSliderContainer}>
-          <ScrollView
+    <ScrollView
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             snapToInterval={SCREEN_WIDTH * 0.9 - 32}
             decelerationRate="fast"
             contentContainerStyle={styles.colorScrollContent}
-            onMomentumScrollEnd={(event) => {
+            onScroll={(event) => {
               const offsetX = event.nativeEvent.contentOffset.x;
               const pageWidth = SCREEN_WIDTH * 0.9 - 32;
               const newIndex = Math.round(offsetX / pageWidth);
@@ -1400,6 +1403,7 @@ const fieldsOrder = ['name', 'description', 'category', 'type', 'weightGoal', 'd
                 setCurrentColorCategory(clampedIndex);
               }
             }}
+            scrollEventThrottle={16}
             ref={colorScrollRef}
           >
                 {Object.values(HABIT_COLOR_CATEGORIES).map((colorGroup, groupIndex) => (
@@ -1477,105 +1481,107 @@ const fieldsOrder = ['name', 'description', 'category', 'type', 'weightGoal', 'd
       </View>
     )}
           
-          {/* Селектор для иконки */}
-          {currentField === 'icon' && (
-            <View style={styles.selectorContent}>
-              <Text style={[styles.selectorTitle, { color: colors.text }]}>
-                Выберите иконку
-              </Text>
+     {/* Селектор для иконки */}
+               {currentField === 'icon' && (
+                 <View style={styles.selectorContent}>
+                   <Text style={[styles.selectorTitle, { color: colors.text }]}>
+                     Выберите иконку
+                   </Text>
+                   <Text style={[styles.selectorSubtitle, { color: colors.textSecondary }]}>
+                     Выберите иконку вашей привычки
+                   </Text>
 
-              {/* Заголовок текущей категории */}
-              <View style={styles.iconSliderHeader}>
-                <Text style={styles.iconCategoryIcon}>
-                  {Object.values(HABIT_ICON_CATEGORIES)[currentIconCategory]?.icon}
-                </Text>
-                <Text style={[styles.iconSliderCategoryTitle, { color: colors.text }]}>
-                  {Object.values(HABIT_ICON_CATEGORIES)[currentIconCategory]?.label}
-                </Text>
-              </View>
+                   {/* Заголовок текущей категории */}
+                   <View style={[styles.iconSliderHeader, { backgroundColor: colors.primary + '15' }]}>
+                     <Text style={styles.iconCategoryIcon}>
+                       {Object.values(HABIT_ICON_CATEGORIES)[currentIconCategory]?.icon}
+                     </Text>
+                     <Text style={[styles.iconSliderTitle, { color: colors.text }]}>
+                       {Object.values(HABIT_ICON_CATEGORIES)[currentIconCategory]?.label}
+                     </Text>
+                   </View>
 
-              {/* Контейнер слайдера */}
-              <View style={styles.iconSliderContainer}>
-                {/* Стрелка влево */}
-                <TouchableOpacity
-                  style={[
-                    styles.iconSliderArrow,
-                    {
-                      backgroundColor: colors.surface,
-                      opacity: currentIconCategory === 0 ? 0.3 : 1
-                    }
-                  ]}
-                  onPress={() => {
-                    if (currentIconCategory > 0) {
-                      setCurrentIconCategory(currentIconCategory - 1);
-                    }
-                  }}
-                  disabled={currentIconCategory === 0}
-                >
-                  <Ionicons name="chevron-back" size={20} color={colors.text} />
-                </TouchableOpacity>
+                   {/* 🔥 НОВЫЙ КОНТЕЙНЕР СО СВАЙПАМИ (БЕЗ СТРЕЛОК!) */}
+                   <View style={styles.iconSliderContainer}>
+                     <ScrollView
+                       horizontal
+                       pagingEnabled
+                       showsHorizontalScrollIndicator={false}
+                       snapToInterval={SCREEN_WIDTH * 0.9 - 32}
+                       decelerationRate="fast"
+                       contentContainerStyle={styles.iconScrollContent}
+                  onScroll={(event) => {
+                    const offsetX = event.nativeEvent.contentOffset.x;
+                    const pageWidth = SCREEN_WIDTH * 0.9 - 32;
+                    const newIndex = Math.round(offsetX / pageWidth);
+                    const maxIndex = Object.keys(HABIT_ICON_CATEGORIES).length - 1;
+                    const clampedIndex = Math.max(0, Math.min(newIndex, maxIndex));
 
-                {/* Сетка иконок текущей категории */}
-                <View style={styles.iconSliderContent}>
-                  <View style={styles.iconCategoryGrid}>
-                    {Object.values(HABIT_ICON_CATEGORIES)[currentIconCategory]?.icons.map(icon => (
-                      <TouchableOpacity
-                        key={icon}
-                        style={[
-                          styles.iconOptionCompact,
-                          {
-                            backgroundColor: formData.icon === icon ? colors.primary + '20' : colors.background,
-                            borderColor: formData.icon === icon ? colors.primary : colors.border,
-                            borderWidth: formData.icon === icon ? 2 : 1
-                          }
-                        ]}
-                        onPress={() => handleFieldSelect(icon)}
-                      >
-                        <Text style={styles.iconTextCompact}>{icon}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                {/* Стрелка вправо */}
-                <TouchableOpacity
-                  style={[
-                    styles.iconSliderArrow,
-                    {
-                      backgroundColor: colors.surface,
-                      opacity: currentIconCategory === Object.keys(HABIT_ICON_CATEGORIES).length - 1 ? 0.3 : 1
-                    }
-                  ]}
-                  onPress={() => {
-                    if (currentIconCategory < Object.keys(HABIT_ICON_CATEGORIES).length - 1) {
-                      setCurrentIconCategory(currentIconCategory + 1);
+                    if (clampedIndex !== currentIconCategory) {
+                      setCurrentIconCategory(clampedIndex);
                     }
                   }}
-                  disabled={currentIconCategory === Object.keys(HABIT_ICON_CATEGORIES).length - 1}
-                >
-                  <Ionicons name="chevron-forward" size={20} color={colors.text} />
-                </TouchableOpacity>
-              </View>
+                  scrollEventThrottle={16}
+                       ref={iconScrollRef}
+                     >
+                       {Object.values(HABIT_ICON_CATEGORIES).map((iconGroup, groupIndex) => (
+                         <View
+                           key={groupIndex}
+                           style={[
+                             styles.iconSliderContent,
+                             { width: SCREEN_WIDTH * 0.9 - 32 }
+                           ]}
+                         >
+                           <View style={styles.iconCategoryGrid}>
+                             {iconGroup.icons.map(icon => (
+                               <TouchableOpacity
+                                 key={icon}
+                                 style={[
+                                   styles.iconOptionCompact,
+                                   {
+                                     backgroundColor: formData.icon === icon ? colors.primary + '20' : colors.background,
+                                     borderColor: formData.icon === icon ? colors.primary : colors.border,
+                                     borderWidth: formData.icon === icon ? 2 : 1
+                                   }
+                                 ]}
+                                 onPress={() => handleFieldSelect(icon)}
+                               >
+                                 <Text style={styles.iconTextCompact}>{icon}</Text>
+                               </TouchableOpacity>
+                             ))}
+                           </View>
+                         </View>
+                       ))}
+                     </ScrollView>
+                   </View>
 
-              {/* Индикаторы страниц */}
-              <View style={styles.iconSliderIndicators}>
-                {Object.keys(HABIT_ICON_CATEGORIES).map((_, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.iconSliderDot,
-                      {
-                        backgroundColor: index === currentIconCategory
-                          ? colors.primary
-                          : colors.border
-                      }
-                    ]}
-                    onPress={() => setCurrentIconCategory(index)}
-                  />
-                ))}
-              </View>
-            </View>
-          )}
+                   {/* Индикаторы страниц (обновленные) */}
+                   <View style={styles.iconSliderIndicators}>
+                     {Object.keys(HABIT_ICON_CATEGORIES).map((_, index) => (
+                       <TouchableOpacity
+                         key={index}
+                         style={[
+                           styles.iconSliderDot,
+                           {
+                             backgroundColor: index === currentIconCategory
+                               ? colors.primary
+                               : colors.border
+                           }
+                         ]}
+                         onPress={() => {
+                           // Программный переход к странице
+                           const pageWidth = SCREEN_WIDTH * 0.9 - 32;
+                           iconScrollRef.current?.scrollTo({
+                             x: index * pageWidth,
+                             animated: true
+                           });
+                           setCurrentIconCategory(index);
+                         }}
+                       />
+                     ))}
+                   </View>
+                 </View>
+               )}
           
           {/* Селектор для времени */}
                     {currentField === 'reminder' && (
@@ -2564,10 +2570,7 @@ colorSliderDot: {
       shadowRadius: 2,
     },
 
-    iconSliderContent: {
-      flex: 1,
-      marginHorizontal: SPACING.md,
-    },
+
 
     iconCategoryGrid: {
       flexDirection: 'row',
@@ -2782,6 +2785,65 @@ colorCircleRotated: {
   shadowOffset: { width: 0, height: 3 },
   shadowOpacity: 0.3,
   shadowRadius: 6,
+},
+
+// Стили слайдера иконок (ОБНОВЛЕННЫЕ)
+iconSliderHeader: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginBottom: SPACING.lg,
+  padding: SPACING.md,
+  borderRadius: BORDER_RADIUS.md,
+},
+
+iconSliderTitle: {
+  ...TYPOGRAPHY.h4,
+  fontWeight: '600',
+},
+
+iconSliderContainer: {
+  marginBottom: SPACING.sm,
+  minHeight: 140,          // ← Уменьши с 240 до 200
+},
+
+iconScrollContent: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+
+iconSliderContent: {
+  flex: 1,
+  paddingHorizontal: SPACING.sm,
+  //paddingVertical: 10,     // ← Уменьши с 20 до 10
+  justifyContent: 'center',
+  alignItems: 'center',
+  minHeight: 160,          // ← Уменьши с 200 до 180
+},
+
+iconCategoryGrid: {
+  flexDirection: 'row',
+  flexWrap: 'wrap',
+  justifyContent: 'space-between',
+  gap: SPACING.sm,
+  paddingHorizontal: SPACING.sm,
+   marginBottom: 0,
+},
+
+iconSliderIndicators: {
+  flexDirection: 'row',
+  justifyContent: 'center',
+  alignItems: 'center',
+  gap: SPACING.sm,
+  paddingHorizontal: SPACING.md,
+  paddingBottom: SPACING.sm,
+  //marginTop: SPACING.xs,
+},
+
+iconSliderDot: {
+  width: 8,
+  height: 8,
+  borderRadius: 4,
 },
 
 });
