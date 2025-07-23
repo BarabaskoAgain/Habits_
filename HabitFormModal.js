@@ -23,6 +23,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+
 // Импорт констант
 import { 
   THEMES, 
@@ -30,6 +31,7 @@ import {
   BORDER_RADIUS, 
   TYPOGRAPHY,
   HABIT_CATEGORIES,
+  HABIT_CATEGORY_TYPES,
   HABIT_ICONS,
   HABIT_ICON_CATEGORIES,
   HABIT_COLORS,
@@ -37,6 +39,45 @@ import {
   HABIT_TYPES,
   MEASUREMENT_UNITS
 } from './constants';
+
+// === КОНФИГУРАЦИЯ АНИМАЦИИ ===
+// 🎯 Эти переменные будут вынесены в настройки приложения в будущем
+const ANIMATION_CONFIG = {
+  // Скорости печати (в миллисекундах)
+  typing: {
+    creation: 35,           // Печать при создании новой карточки
+    editing: 2,            // Печать при редактировании существующей
+    afterEdit: 2,          // Печать после редактирования
+  },
+
+  // Скорости удаления (в миллисекундах)
+  deletion: {
+    creation: 5,           // Удаление при создании (базовая скорость)
+    editing: 1,            // Очень быстрое удаление при редактировании
+  },
+
+  // Количество символов за раз
+  charsPerTick: {
+    creation: {
+      min: 1,              // Минимум символов за раз при создании
+      max: 2,             // Максимум символов за раз при создании
+    },
+    editing: {
+      typing: {            // ⭐ НОВОЕ: для обычного редактирования
+        min: 1,
+        max: 3,
+      },
+      deletion: {
+        min: 1,            // Минимум символов за раз при удалении в редактировании
+        max: 10,           // Максимум символов за раз при удалении в редактировании
+      }
+    },
+    afterEdit: {           // ⭐ НОВОЕ: для печати после редактирования
+      min: 2,
+      max: 8,
+    }
+  }
+};
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -66,8 +107,9 @@ const HabitFormModal = ({
   });
 
   // === СОСТОЯНИЕ СЛАЙДЕРА ЦВЕТОВ И ИКОНОК ===
-  const [currentColorCategory, setCurrentColorCategory] = useState(0);
-    const [currentIconCategory, setCurrentIconCategory] = useState(0);
+const [currentColorCategory, setCurrentColorCategory] = useState(0);
+const [currentIconCategory, setCurrentIconCategory] = useState(0);
+const [currentCategoryType, setCurrentCategoryType] = useState(0);
 
   // === СОСТОЯНИЕ ТЕКСТОВОГО РЕЖИМА ===
   const [currentField, setCurrentField] = useState(null);
@@ -89,6 +131,12 @@ const HabitFormModal = ({
   const [fieldPositions, setFieldPositions] = useState({});
   const [textParts, setTextParts] = useState([]);
 
+// 🆕 НОВОЕ СОСТОЯНИЕ: флаг печати после редактирования
+  const [isAfterEdit, setIsAfterEdit] = useState(false);
+
+  // 🎯 НОВЫЙ ФЛАГ: мгновенный показ при открытии редактирования
+  const [justOpenedEditModal, setJustOpenedEditModal] = useState(false);
+
   // === АНИМАЦИИ ===
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -97,6 +145,11 @@ const HabitFormModal = ({
   // === РЕФЫ ДЛЯ PICKER'ОВ ВРЕМЕНИ ===
   const hoursScrollRef = useRef(null);
   const minutesScrollRef = useRef(null);
+
+  // == РЕФ ДЛЯ ТИПОВ ПРИВЫЧЕК ==
+  const categoryScrollRef = useRef(null); // СКРОЛЛ ДЛЯ КАТЕГОРИЙ
+const colorScrollRef = useRef(null); // СКРОЛ ДЛЯ ЦВЕТОВ
+const iconScrollRef = useRef(null); // ← СКРОЛЛ ДЛЯ ИКОНОК
 
   const colors = THEMES[theme] ? THEMES[theme][isDarkMode ? 'dark' : 'light'] : THEMES.blue.light;
 
@@ -230,8 +283,7 @@ if (completedFields.has('description')) {
     return position;
   }, [textParts]);
 
-  // === ЭФФЕКТЫ ===
-  useEffect(() => {
+useEffect(() => {
     if (visible) {
       // Анимация появления
       Animated.parallel([
@@ -247,11 +299,11 @@ if (completedFields.has('description')) {
           useNativeDriver: true,
         })
       ]).start();
-      
+
       // Начальный текст
       const parts = generateTextParts();
       setTextParts(parts);
-      
+
       // Вычисляем полный текст для печатания
       let text = '';
       parts.forEach(part => {
@@ -259,8 +311,13 @@ if (completedFields.has('description')) {
           text += part.content;
         }
       });
-      
-            // Запускаем анимацию печатания для обоих случаев
+
+      // 🎯 УСТАНАВЛИВАЕМ ФЛАГ для мгновенного показа при редактировании
+      if (habit) {
+        setJustOpenedEditModal(true);
+      }
+
+      // Запускаем анимацию печатания для обоих случаев
       setFullText(text);
       setIsTyping(true);
 
@@ -270,68 +327,142 @@ if (completedFields.has('description')) {
     }
   }, [visible, habit]);
 
-  // Эффект печатания
-  useEffect(() => {
-    if (isTyping && currentCharIndex < fullText.length) {
-      // Разная скорость для создания и редактирования
-      const typingSpeed = habit ? 0.2 : 10; // 1мс для редактирования, 30мс для создания
-      
-      const timeout = setTimeout(() => {
-        setDisplayedText(prev => prev + fullText[currentCharIndex]);
-        setCurrentCharIndex(prev => prev + 1);
-      }, typingSpeed);
-      
-      return () => clearTimeout(timeout);
-    } else if (currentCharIndex >= fullText.length) {
-      setIsTyping(false);
-    }
-  }, [currentCharIndex, fullText, isTyping, habit]);
-
-  // Эффект удаления текста с улучшенной производительностью
+// === 🆕 ОБНОВЛЕННЫЙ ЭФФЕКТ ПЕЧАТАНИЯ ===
 useEffect(() => {
-  if (isDeleting && displayedText.length > deleteTargetIndex) {
-    // Более быстрое и плавное удаление
-    const charsToDelete = displayedText.length - deleteTargetIndex;
-    const deleteSpeed = Math.max(3, Math.min(15, 800 / charsToDelete)); // Быстрее: от 3 до 15мс
-    
+  if (isTyping && currentCharIndex < fullText.length) {
+    // --- 🎯 МГНОВЕННО только при самом открытии редактирования ---
+    if (justOpenedEditModal) {
+      setDisplayedText(fullText);
+      setCurrentCharIndex(fullText.length);
+      setIsTyping(false);
+      setJustOpenedEditModal(false);  // СБРАСЫВАЕМ
+      return;
+    }
+
+    // --- Дальше обычная анимация ---
+    // Определяем скорость печати
+    let typingSpeed;
+    if (isAfterEdit) {
+      // После редактирования - в 2 раза быстрее создания
+      typingSpeed = ANIMATION_CONFIG.typing.afterEdit;
+    } else if (habit) {
+      // Редактирование существующей привычки
+      typingSpeed = ANIMATION_CONFIG.typing.editing;
+    } else {
+      // Создание новой привычки
+      typingSpeed = ANIMATION_CONFIG.typing.creation;
+    }
+
+// Определяем количество символов за раз
+let charsToAdd;
+let config;
+
+if (habit && !isAfterEdit) {
+  // При обычном редактировании
+  config = ANIMATION_CONFIG.charsPerTick.editing.typing;
+} else if (isAfterEdit) {
+  // После редактирования
+  config = ANIMATION_CONFIG.charsPerTick.afterEdit;
+} else {
+  // При создании новой привычки
+  config = ANIMATION_CONFIG.charsPerTick.creation;
+}
+
+charsToAdd = Math.floor(Math.random() * (config.max - config.min + 1)) + config.min;
+
     const timeout = setTimeout(() => {
-      setDisplayedText(prev => prev.slice(0, -1));
-    }, deleteSpeed);
-    
+      // Добавляем символы, не превышая длину текста
+      const remainingChars = fullText.length - currentCharIndex;
+      const actualCharsToAdd = Math.min(charsToAdd, remainingChars);
+
+      setDisplayedText(prev => prev + fullText.substr(currentCharIndex, actualCharsToAdd));
+      setCurrentCharIndex(prev => prev + actualCharsToAdd);
+    }, typingSpeed);
+
     return () => clearTimeout(timeout);
-  } else if (isDeleting && displayedText.length <= deleteTargetIndex) {
-    setIsDeleting(false);
-    
-    // Применяем отложенные изменения полей, если они есть
-    if (pendingCompletedFields) {
-      setCompletedFields(pendingCompletedFields);
-      setPendingCompletedFields(null);
+  } else if (currentCharIndex >= fullText.length) {
+    setIsTyping(false);
+    // Сбрасываем флаг после завершения печати
+    if (isAfterEdit) {
+      setIsAfterEdit(false);
     }
   }
-}, [isDeleting, displayedText.length, deleteTargetIndex, pendingCompletedFields]);
+}, [currentCharIndex, fullText, isTyping, habit, isAfterEdit, justOpenedEditModal]);
 
-// Отдельный эффект для генерации текста после завершения удаления
+  // === 🆕 ОБНОВЛЕННЫЙ ЭФФЕКТ УДАЛЕНИЯ ===
+  useEffect(() => {
+    if (isDeleting && displayedText.length > deleteTargetIndex) {
+      // Определяем скорость удаления
+      let deleteSpeed;
+      if (habit) {
+        // При редактировании - очень быстрое удаление
+        deleteSpeed = ANIMATION_CONFIG.deletion.editing;
+      } else {
+        // При создании - обычная скорость
+        deleteSpeed = ANIMATION_CONFIG.deletion.creation;
+      }
+
+      // Определяем количество символов для удаления за раз
+      let charsToDelete;
+      if (habit) {
+        // При редактировании - ограниченное количество символов
+        const config = ANIMATION_CONFIG.charsPerTick.editing.deletion;
+        charsToDelete = Math.floor(Math.random() * (config.max - config.min + 1)) + config.min;
+      } else {
+        // При создании - рандомное количество как при печати
+        const config = ANIMATION_CONFIG.charsPerTick.creation;
+        charsToDelete = Math.floor(Math.random() * (config.max - config.min + 1)) + config.min;
+      }
+
+      const timeout = setTimeout(() => {
+        // Удаляем символы, не превышая целевой индекс
+        const currentLength = displayedText.length;
+        const charsCanDelete = currentLength - deleteTargetIndex;
+        const actualCharsToDelete = Math.min(charsToDelete, charsCanDelete);
+
+        setDisplayedText(prev => prev.slice(0, -actualCharsToDelete));
+      }, deleteSpeed);
+
+      return () => clearTimeout(timeout);
+    } else if (isDeleting && displayedText.length <= deleteTargetIndex) {
+      setIsDeleting(false);
+
+      // Применяем отложенные изменения полей, если они есть
+      if (pendingCompletedFields) {
+        setCompletedFields(pendingCompletedFields);
+        setPendingCompletedFields(null);
+      }
+    }
+  }, [isDeleting, displayedText.length, deleteTargetIndex, pendingCompletedFields, habit]);
+
+// === 🆕 ОБНОВЛЕННЫЙ ЭФФЕКТ ГЕНЕРАЦИИ ТЕКСТА ПОСЛЕ УДАЛЕНИЯ ===
 useEffect(() => {
   if (!isDeleting && !isTyping && displayedText.length === deleteTargetIndex && deleteTargetIndex > 0) {
     // Генерируем новый текст и начинаем печатать
     const parts = generateTextParts();
     setTextParts(parts);
-    
+
     let newFullText = '';
     parts.forEach(part => {
       if (part.type === 'text') {
         newFullText += part.content;
       }
     });
-    
+
     setFullText(newFullText);
     setCurrentCharIndex(deleteTargetIndex);
+
+    // 🎯 ВАЖНО: Устанавливаем флаг "после редактирования" для ускоренной печати
+    if (habit) {
+      setIsAfterEdit(true);
+    }
+
     setIsTyping(true);
-    
+
     // Сбрасываем deleteTargetIndex после использования
     setDeleteTargetIndex(0);
   }
-}, [isDeleting, isTyping, displayedText.length, deleteTargetIndex, generateTextParts]);
+}, [isDeleting, isTyping, displayedText.length, deleteTargetIndex, generateTextParts, habit]);
 
   // Обновление текста при изменении формы
   useEffect(() => {
@@ -531,6 +662,7 @@ useEffect(() => {
     setIsDeleting(false);
     setDeleteTargetIndex(0);
     setPendingCompletedFields(null);
+    setIsAfterEdit(false); // 🆕 Сброс нового состояния
     setTextParts([]);
     setFieldPositions({});
   };
@@ -891,36 +1023,116 @@ const fieldsOrder = ['name', 'description', 'category', 'type', 'weightGoal', 'd
   </View>
 )}
         
-          {/* Селектор для категории */}
-          {currentField === 'category' && (
-            <View style={styles.selectorContent}>
-              <Text style={[styles.selectorTitle, { color: colors.text }]}>
-                Выберите категорию
-              </Text>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {Object.entries(HABIT_CATEGORIES).map(([key, category]) => (
-                  <TouchableOpacity
-                    key={key}
-                    style={[
-                      styles.categoryOption,
-                      {
-                        backgroundColor: colors.background,
-                        borderColor: colors.border
-                      }
-                    ]}
-                    onPress={() => handleFieldSelect(key)}
-                  >
-                    <Text style={styles.categoryIcon}>{category.icon}</Text>
-                    <View style={styles.categoryInfo}>
-                      <Text style={[styles.categoryName, { color: colors.text }]}>
-                        {category.label}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          )}
+ {/* Селектор для категории */}
+ {currentField === 'category' && (
+   <View style={styles.selectorContent}>
+     <Text style={[styles.selectorTitle, { color: colors.text }]}>
+       Выберите категорию
+     </Text>
+     <Text style={[styles.selectorSubtitle, { color: colors.textSecondary }]}>
+       Выберите тип привычки из популярных категорий
+     </Text>
+
+     {/* Заголовок текущего типа категорий */}
+     <View style={[styles.categorySliderHeader, { backgroundColor: colors.primary + '15' }]}>
+       <Text style={styles.categoryTypeIcon}>
+         {Object.values(HABIT_CATEGORY_TYPES)[currentCategoryType]?.icon}
+       </Text>
+       <Text style={[styles.categorySliderTitle, { color: colors.text }]}>
+         {Object.values(HABIT_CATEGORY_TYPES)[currentCategoryType]?.label}
+       </Text>
+     </View>
+
+     {/* Контейнер слайдера СО СВАЙПАМИ */}
+     <View style={styles.categorySliderContainer}>
+       <ScrollView
+         horizontal
+         pagingEnabled
+         showsHorizontalScrollIndicator={false}
+        snapToInterval={SCREEN_WIDTH * 0.9 - 32} // Модальное окно (90% ширины) минус padding selectorContent (16*2=32)
+         decelerationRate="fast"
+         contentContainerStyle={styles.categoryScrollContent}
+            onScroll={(event) => {
+              const offsetX = event.nativeEvent.contentOffset.x;
+              const pageWidth = SCREEN_WIDTH * 0.9 - 32;
+              const newIndex = Math.round(offsetX / pageWidth);
+              const maxIndex = Object.keys(HABIT_CATEGORY_TYPES).length - 1;
+              const clampedIndex = Math.max(0, Math.min(newIndex, maxIndex));
+
+              if (clampedIndex !== currentCategoryType) {
+                setCurrentCategoryType(clampedIndex);
+              }
+            }}
+            scrollEventThrottle={16}
+         ref={categoryScrollRef}
+       >
+         {Object.values(HABIT_CATEGORY_TYPES).map((categoryGroup, groupIndex) => (
+           <View
+             key={groupIndex}
+           style={[
+             styles.categorySliderContent,
+             { width: SCREEN_WIDTH * 0.9 - 32 }           ]}
+           >
+             <View style={styles.categoriesGrid}>
+               {categoryGroup.categories.map(categoryKey => {
+                 const category = HABIT_CATEGORIES[categoryKey];
+                 return (
+                   <TouchableOpacity
+                     key={categoryKey}
+                     style={[
+                       styles.categoryOptionCompact,
+                       {
+                         backgroundColor: colors.background,
+                         borderColor: colors.border
+                       }
+                     ]}
+                     onPress={() => handleFieldSelect(categoryKey)}
+                   >
+                     <Text style={styles.categoryIcon}>{category.icon}</Text>
+                     <View style={styles.categoryInfo}>
+                       <Text style={[styles.categoryName, { color: colors.text }]}>
+                         {category.label}
+                       </Text>
+                       <Text style={[styles.categoryDescription, { color: colors.textSecondary }]}>
+                         {category.description}
+                       </Text>
+                     </View>
+                   </TouchableOpacity>
+                 );
+               })}
+             </View>
+           </View>
+         ))}
+       </ScrollView>
+     </View>
+
+     {/* Индикаторы страниц (обновленные) */}
+     <View style={styles.categorySliderIndicators}>
+       {Object.keys(HABIT_CATEGORY_TYPES).map((_, index) => (
+         <TouchableOpacity
+           key={index}
+           style={[
+             styles.categorySliderDot,
+             {
+               backgroundColor: index === currentCategoryType
+                 ? colors.primary
+                 : colors.border
+             }
+           ]}
+      onPress={() => {
+        // Программный переход к странице
+        const pageWidth = SCREEN_WIDTH * 0.9 - 32;
+        categoryScrollRef.current?.scrollTo({
+          x: index * pageWidth,
+          animated: true
+        });
+        setCurrentCategoryType(index);
+      }}
+         />
+       ))}
+     </View>
+   </View>
+ )}
           
           {/* Селектор для типа */}
           {currentField === 'type' && (
@@ -1152,206 +1364,224 @@ const fieldsOrder = ['name', 'description', 'category', 'type', 'weightGoal', 'd
           )}
           
     {/* Селектор для цвета */}
-           {currentField === 'color' && (
-             <View style={styles.selectorContent}>
-               <Text style={[styles.selectorTitle, { color: colors.text }]}>
-                 Выберите цвет
-               </Text>
+    {currentField === 'color' && (
+      <View style={styles.selectorContent}>
+        <Text style={[styles.selectorTitle, { color: colors.text }]}>
+          Выберите цвет
+        </Text>
+        <Text style={[styles.selectorSubtitle, { color: colors.textSecondary }]}>
+          Выберите цвет привычки из популярных палитр
+        </Text>
 
-               {/* Заголовок текущей категории */}
-               <View style={styles.colorSliderHeader}>
-                 <Text style={styles.colorCategoryIcon}>
-                   {Object.values(HABIT_COLOR_CATEGORIES)[currentColorCategory]?.icon}
-                 </Text>
-                 <Text style={[styles.colorSliderCategoryTitle, { color: colors.text }]}>
-                   {Object.values(HABIT_COLOR_CATEGORIES)[currentColorCategory]?.label}
-                 </Text>
-               </View>
+        {/* Заголовок текущей категории цветов */}
+        <View style={[styles.colorSliderHeader, { backgroundColor: colors.primary + '15' }]}>
+          <Text style={styles.colorCategoryIcon}>
+            {Object.values(HABIT_COLOR_CATEGORIES)[currentColorCategory]?.icon}
+          </Text>
+          <Text style={[styles.colorSliderTitle, { color: colors.text }]}>
+            {Object.values(HABIT_COLOR_CATEGORIES)[currentColorCategory]?.label}
+          </Text>
+        </View>
 
-               {/* Контейнер слайдера */}
-               <View style={styles.colorSliderContainer}>
-                 {/* Стрелка влево */}
-                 <TouchableOpacity
-                   style={[
-                     styles.colorSliderArrow,
-                     {
-                       backgroundColor: colors.surface,
-                       opacity: currentColorCategory === 0 ? 0.3 : 1
-                     }
-                   ]}
-                   onPress={() => {
-                     if (currentColorCategory > 0) {
-                       setCurrentColorCategory(currentColorCategory - 1);
-                     }
-                   }}
-                   disabled={currentColorCategory === 0}
-                 >
-                   <Ionicons name="chevron-back" size={20} color={colors.text} />
-                 </TouchableOpacity>
+        {/* Контейнер слайдера СО СВАЙПАМИ */}
+        <View style={styles.colorSliderContainer}>
+    <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={SCREEN_WIDTH * 0.9 - 32}
+            decelerationRate="fast"
+            contentContainerStyle={styles.colorScrollContent}
+            onScroll={(event) => {
+              const offsetX = event.nativeEvent.contentOffset.x;
+              const pageWidth = SCREEN_WIDTH * 0.9 - 32;
+              const newIndex = Math.round(offsetX / pageWidth);
+              const maxIndex = Object.keys(HABIT_COLOR_CATEGORIES).length - 1;
+              const clampedIndex = Math.max(0, Math.min(newIndex, maxIndex));
 
-                 {/* Сетка цветов текущей категории */}
-                 <View style={styles.colorSliderContent}>
-                   <View style={styles.colorCategoryGrid}>
-                     {Object.values(HABIT_COLOR_CATEGORIES)[currentColorCategory]?.colors.map(color => (
+              if (clampedIndex !== currentColorCategory) {
+                setCurrentColorCategory(clampedIndex);
+              }
+            }}
+            scrollEventThrottle={16}
+            ref={colorScrollRef}
+          >
+                {Object.values(HABIT_COLOR_CATEGORIES).map((colorGroup, groupIndex) => (
+                  <View
+                    key={groupIndex}
+                    style={[
+                      styles.colorSliderContent,
+                      { width: SCREEN_WIDTH * 0.9 - 32 }
+                    ]}
+                  >
+                    <View style={styles.rotatedGridContainer}>
+                      <View style={styles.rotatedGrid}>
+
+                  {colorGroup.colors.slice(0, 9).map((color, index) => {
+                    // ПРАВИЛЬНАЯ сетка 3x3: строка и колонка
+                    const row = Math.floor(index / 3); // 0,0,0,1,1,1,2,2,2
+                    const col = index % 3;             // 0,1,2,0,1,2,0,1,2
+
+                    // Размеры: контейнер 200x200, кружки 44x44
+                    const cellSize = 80; // 200/3 ≈ 66
+                    const circleSize = 58;
+                    const offset = (cellSize - circleSize) / 2; // центрирование в ячейке
+
+                    return (
+                   <TouchableOpacity
+                     key={color}
+                     style={[
+                       styles.colorCircleRotated,
+                       {
+                         backgroundColor: color,
+                         borderWidth: formData.color === color ? 3 : 0,
+                         borderColor: formData.color === color ? '#ffffff' : 'transparent',
+                         top: row * cellSize + offset,
+                         left: col * cellSize + offset,
+                       }
+                     ]}
+                     onPress={() => handleFieldSelect(color)}
+                   >
+                   </TouchableOpacity>
+                    );
+                  })}
+
+                      </View>
+                    </View>
+                  </View>
+                ))}
+          </ScrollView>
+        </View>
+
+        {/* Индикаторы страниц (обновленные) */}
+        <View style={styles.colorSliderIndicators}>
+          {Object.keys(HABIT_COLOR_CATEGORIES).map((_, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.colorSliderDot,
+                {
+                  backgroundColor: index === currentColorCategory
+                    ? colors.primary
+                    : colors.border
+                }
+              ]}
+              onPress={() => {
+                // Программный переход к странице
+                const pageWidth = SCREEN_WIDTH * 0.9 - 32;
+                colorScrollRef.current?.scrollTo({
+                  x: index * pageWidth,
+                  animated: true
+                });
+                setCurrentColorCategory(index);
+              }}
+            />
+          ))}
+        </View>
+      </View>
+    )}
+          
+     {/* Селектор для иконки */}
+               {currentField === 'icon' && (
+                 <View style={styles.selectorContent}>
+                   <Text style={[styles.selectorTitle, { color: colors.text }]}>
+                     Выберите иконку
+                   </Text>
+                   <Text style={[styles.selectorSubtitle, { color: colors.textSecondary }]}>
+                     Выберите иконку вашей привычки
+                   </Text>
+
+                   {/* Заголовок текущей категории */}
+                   <View style={[styles.iconSliderHeader, { backgroundColor: colors.primary + '15' }]}>
+                     <Text style={styles.iconCategoryIcon}>
+                       {Object.values(HABIT_ICON_CATEGORIES)[currentIconCategory]?.icon}
+                     </Text>
+                     <Text style={[styles.iconSliderTitle, { color: colors.text }]}>
+                       {Object.values(HABIT_ICON_CATEGORIES)[currentIconCategory]?.label}
+                     </Text>
+                   </View>
+
+                   {/* 🔥 НОВЫЙ КОНТЕЙНЕР СО СВАЙПАМИ (БЕЗ СТРЕЛОК!) */}
+                   <View style={styles.iconSliderContainer}>
+                     <ScrollView
+                       horizontal
+                       pagingEnabled
+                       showsHorizontalScrollIndicator={false}
+                       snapToInterval={SCREEN_WIDTH * 0.9 - 32}
+                       decelerationRate="fast"
+                       contentContainerStyle={styles.iconScrollContent}
+                  onScroll={(event) => {
+                    const offsetX = event.nativeEvent.contentOffset.x;
+                    const pageWidth = SCREEN_WIDTH * 0.9 - 32;
+                    const newIndex = Math.round(offsetX / pageWidth);
+                    const maxIndex = Object.keys(HABIT_ICON_CATEGORIES).length - 1;
+                    const clampedIndex = Math.max(0, Math.min(newIndex, maxIndex));
+
+                    if (clampedIndex !== currentIconCategory) {
+                      setCurrentIconCategory(clampedIndex);
+                    }
+                  }}
+                  scrollEventThrottle={16}
+                       ref={iconScrollRef}
+                     >
+                       {Object.values(HABIT_ICON_CATEGORIES).map((iconGroup, groupIndex) => (
+                         <View
+                           key={groupIndex}
+                           style={[
+                             styles.iconSliderContent,
+                             { width: SCREEN_WIDTH * 0.9 - 32 }
+                           ]}
+                         >
+                           <View style={styles.iconCategoryGrid}>
+                             {iconGroup.icons.map(icon => (
+                               <TouchableOpacity
+                                 key={icon}
+                                 style={[
+                                   styles.iconOptionCompact,
+                                   {
+                                     backgroundColor: formData.icon === icon ? colors.primary + '20' : colors.background,
+                                     borderColor: formData.icon === icon ? colors.primary : colors.border,
+                                     borderWidth: formData.icon === icon ? 2 : 1
+                                   }
+                                 ]}
+                                 onPress={() => handleFieldSelect(icon)}
+                               >
+                                 <Text style={styles.iconTextCompact}>{icon}</Text>
+                               </TouchableOpacity>
+                             ))}
+                           </View>
+                         </View>
+                       ))}
+                     </ScrollView>
+                   </View>
+
+                   {/* Индикаторы страниц (обновленные) */}
+                   <View style={styles.iconSliderIndicators}>
+                     {Object.keys(HABIT_ICON_CATEGORIES).map((_, index) => (
                        <TouchableOpacity
-                         key={color}
+                         key={index}
                          style={[
-                           styles.colorOptionCompact,
+                           styles.iconSliderDot,
                            {
-                             backgroundColor: color,
-                             borderWidth: formData.color === color ? 3 : 0,
-                             borderColor: formData.color === color ? '#ffffff' : 'transparent'
+                             backgroundColor: index === currentIconCategory
+                               ? colors.primary
+                               : colors.border
                            }
                          ]}
-                         onPress={() => handleFieldSelect(color)}
-                       >
-                         {formData.color === color && (
-                           <Ionicons name="checkmark" size={20} color="#ffffff" />
-                         )}
-                       </TouchableOpacity>
+                         onPress={() => {
+                           // Программный переход к странице
+                           const pageWidth = SCREEN_WIDTH * 0.9 - 32;
+                           iconScrollRef.current?.scrollTo({
+                             x: index * pageWidth,
+                             animated: true
+                           });
+                           setCurrentIconCategory(index);
+                         }}
+                       />
                      ))}
                    </View>
                  </View>
-
-                 {/* Стрелка вправо */}
-                 <TouchableOpacity
-                   style={[
-                     styles.colorSliderArrow,
-                     {
-                       backgroundColor: colors.surface,
-                       opacity: currentColorCategory === Object.keys(HABIT_COLOR_CATEGORIES).length - 1 ? 0.3 : 1
-                     }
-                   ]}
-                   onPress={() => {
-                     if (currentColorCategory < Object.keys(HABIT_COLOR_CATEGORIES).length - 1) {
-                       setCurrentColorCategory(currentColorCategory + 1);
-                     }
-                   }}
-                   disabled={currentColorCategory === Object.keys(HABIT_COLOR_CATEGORIES).length - 1}
-                 >
-                   <Ionicons name="chevron-forward" size={20} color={colors.text} />
-                 </TouchableOpacity>
-               </View>
-
-               {/* Индикаторы страниц */}
-               <View style={styles.colorSliderIndicators}>
-                 {Object.keys(HABIT_COLOR_CATEGORIES).map((_, index) => (
-                   <TouchableOpacity
-                     key={index}
-                     style={[
-                       styles.colorSliderDot,
-                       {
-                         backgroundColor: index === currentColorCategory
-                           ? colors.primary
-                           : colors.border
-                       }
-                     ]}
-                     onPress={() => setCurrentColorCategory(index)}
-                   />
-                 ))}
-               </View>
-             </View>
-           )}
-          
-          {/* Селектор для иконки */}
-          {currentField === 'icon' && (
-            <View style={styles.selectorContent}>
-              <Text style={[styles.selectorTitle, { color: colors.text }]}>
-                Выберите иконку
-              </Text>
-
-              {/* Заголовок текущей категории */}
-              <View style={styles.iconSliderHeader}>
-                <Text style={styles.iconCategoryIcon}>
-                  {Object.values(HABIT_ICON_CATEGORIES)[currentIconCategory]?.icon}
-                </Text>
-                <Text style={[styles.iconSliderCategoryTitle, { color: colors.text }]}>
-                  {Object.values(HABIT_ICON_CATEGORIES)[currentIconCategory]?.label}
-                </Text>
-              </View>
-
-              {/* Контейнер слайдера */}
-              <View style={styles.iconSliderContainer}>
-                {/* Стрелка влево */}
-                <TouchableOpacity
-                  style={[
-                    styles.iconSliderArrow,
-                    {
-                      backgroundColor: colors.surface,
-                      opacity: currentIconCategory === 0 ? 0.3 : 1
-                    }
-                  ]}
-                  onPress={() => {
-                    if (currentIconCategory > 0) {
-                      setCurrentIconCategory(currentIconCategory - 1);
-                    }
-                  }}
-                  disabled={currentIconCategory === 0}
-                >
-                  <Ionicons name="chevron-back" size={20} color={colors.text} />
-                </TouchableOpacity>
-
-                {/* Сетка иконок текущей категории */}
-                <View style={styles.iconSliderContent}>
-                  <View style={styles.iconCategoryGrid}>
-                    {Object.values(HABIT_ICON_CATEGORIES)[currentIconCategory]?.icons.map(icon => (
-                      <TouchableOpacity
-                        key={icon}
-                        style={[
-                          styles.iconOptionCompact,
-                          {
-                            backgroundColor: formData.icon === icon ? colors.primary + '20' : colors.background,
-                            borderColor: formData.icon === icon ? colors.primary : colors.border,
-                            borderWidth: formData.icon === icon ? 2 : 1
-                          }
-                        ]}
-                        onPress={() => handleFieldSelect(icon)}
-                      >
-                        <Text style={styles.iconTextCompact}>{icon}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                {/* Стрелка вправо */}
-                <TouchableOpacity
-                  style={[
-                    styles.iconSliderArrow,
-                    {
-                      backgroundColor: colors.surface,
-                      opacity: currentIconCategory === Object.keys(HABIT_ICON_CATEGORIES).length - 1 ? 0.3 : 1
-                    }
-                  ]}
-                  onPress={() => {
-                    if (currentIconCategory < Object.keys(HABIT_ICON_CATEGORIES).length - 1) {
-                      setCurrentIconCategory(currentIconCategory + 1);
-                    }
-                  }}
-                  disabled={currentIconCategory === Object.keys(HABIT_ICON_CATEGORIES).length - 1}
-                >
-                  <Ionicons name="chevron-forward" size={20} color={colors.text} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Индикаторы страниц */}
-              <View style={styles.iconSliderIndicators}>
-                {Object.keys(HABIT_ICON_CATEGORIES).map((_, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.iconSliderDot,
-                      {
-                        backgroundColor: index === currentIconCategory
-                          ? colors.primary
-                          : colors.border
-                      }
-                    ]}
-                    onPress={() => setCurrentIconCategory(index)}
-                  />
-                ))}
-              </View>
-            </View>
-          )}
+               )}
           
           {/* Селектор для времени */}
                     {currentField === 'reminder' && (
@@ -1564,11 +1794,6 @@ const isFormComplete = () => {
     
     // Частота требуется для всех типов
     requiredFields.push('frequency');
-    
-    // Добавим логирование для отладки
-    console.log('Required fields:', requiredFields);
-    console.log('Completed fields:', Array.from(completedFields));
-    console.log('Form is complete:', requiredFields.every(field => completedFields.has(field)));
     
     return requiredFields.every(field => completedFields.has(field));
   };
@@ -2059,11 +2284,7 @@ selectorSubtitle: {
     fontWeight: '600',
   },
 
-  colorSliderContent: {
-    flex: 1,
-    marginHorizontal: SPACING.md,
-    paddingHorizontal: SPACING.sm,
-  },
+
 
   colorCategoryGrid: {
       width: 220,
@@ -2089,71 +2310,82 @@ selectorSubtitle: {
       marginBottom: SPACING.sm,
     },
 
-  // Стили слайдера цветов
-  colorSliderHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.lg,
-  },
+// Стили слайдера цветов
+colorSliderHeader: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginBottom: SPACING.lg,
+  padding: SPACING.md,
+  borderRadius: BORDER_RADIUS.md,
+},
 
-  colorSliderCategoryTitle: {
-    ...TYPOGRAPHY.h4,
-    fontWeight: '600',
-    marginLeft: SPACING.sm,
-  },
+colorCategoryIcon: {
+  fontSize: 24,
+  marginRight: SPACING.sm,
+},
 
-  colorSliderContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.lg,
-    minHeight: 140, // фиксированная высота для стабильности
-  },
+colorSliderTitle: {
+  ...TYPOGRAPHY.h4,
+  fontWeight: '600',
+},
 
-  colorSliderArrow: {
-    width: 44,
-    height: 44,
-    borderRadius: BORDER_RADIUS.full,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
+colorSliderContainer: {
+  marginBottom: SPACING.lg,
+  minHeight: 300,
+},
 
-  colorSliderArrow: {
-    width: 44,
-    height: 44,
-    borderRadius: BORDER_RADIUS.full,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
+colorScrollContent: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
 
-  colorSliderContent: {
-    flex: 1,
-    marginHorizontal: SPACING.md,
-  },
+colorSliderContent: {
+  flex: 1,
+  paddingHorizontal: SPACING.sm,
+  paddingVertical: 40, // ← ДОБАВИТЬ! Отступы сверху и снизу
+  justifyContent: 'center',
+  alignItems: 'center',
+  minHeight: 260,
+},
 
-  colorSliderIndicators: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
+colorCategoryGrid: {
+  flexDirection: 'row',
+  flexWrap: 'wrap',
+  justifyContent: 'space-between',
+  gap: SPACING.md,
+  paddingHorizontal: SPACING.sm,
+},
 
-  colorSliderDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
+colorOptionCompact: {
+  width: 50,
+  height: 50,
+  borderRadius: BORDER_RADIUS.full,
+  justifyContent: 'center',
+  alignItems: 'center',
+  elevation: 4,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 3 },
+  shadowOpacity: 0.3,
+  shadowRadius: 6,
+  marginBottom: SPACING.sm,
+},
+
+colorSliderIndicators: {
+  flexDirection: 'row',
+  justifyContent: 'center',
+  alignItems: 'center',
+  gap: SPACING.sm,
+  paddingHorizontal: SPACING.md,  // Добавил отступы
+  paddingBottom: SPACING.sm,      // Добавил отступ снизу
+  marginTop: SPACING.xs,          // Добавил отступ сверху
+},
+
+colorSliderDot: {
+  width: 8,
+  height: 8,
+  borderRadius: 4,
+},
   
   // Иконки
   iconGrid: {
@@ -2281,7 +2513,7 @@ selectorSubtitle: {
     ...TYPOGRAPHY.button,
     fontWeight: '600',
   },
-  
+  //
   saveButton: {
     flex: 1,
     paddingVertical: SPACING.md,
@@ -2338,10 +2570,7 @@ selectorSubtitle: {
       shadowRadius: 2,
     },
 
-    iconSliderContent: {
-      flex: 1,
-      marginHorizontal: SPACING.md,
-    },
+
 
     iconCategoryGrid: {
       flexDirection: 'row',
@@ -2446,6 +2675,183 @@ selectedTimePreview: {
   marginBottom: SPACING.md,
 },
 
+// === СТИЛИ СЛАЙДЕРА КАТЕГОРИЙ ===
+categorySliderHeader: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginBottom: SPACING.lg,
+  padding: SPACING.md,
+  borderRadius: BORDER_RADIUS.md,
+},
+
+categoryTypeIcon: {
+  fontSize: 24,
+  marginRight: SPACING.sm,
+},
+
+categorySliderTitle: {
+  ...TYPOGRAPHY.h4,
+  fontWeight: '600',
+},
+
+// Изменить categorySliderContainer
+categorySliderContainer: {
+
+  marginBottom: SPACING.lg,
+  minHeight: 280,
+},
+
+categorySliderArrow: {
+  width: 44,
+  height: 44,
+  borderRadius: BORDER_RADIUS.full,
+  justifyContent: 'center',
+  alignItems: 'center',
+  elevation: 2,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.2,
+  shadowRadius: 2,
+},
+
+categorySliderContent: {
+  flex: 1,
+  paddingHorizontal: SPACING.md,
+},
+
+categoriesGrid: {
+  gap: SPACING.sm,
+},
+
+categoryOptionCompact: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  padding: SPACING.md,
+  borderRadius: BORDER_RADIUS.md,
+  borderWidth: 1,
+  marginBottom: SPACING.sm,
+},
+
+categoryDescription: {
+  ...TYPOGRAPHY.caption,
+  marginTop: 2,
+},
+
+categorySliderIndicators: {
+  flexDirection: 'row',
+  justifyContent: 'center',
+  alignItems: 'center',
+  gap: SPACING.sm,
+},
+
+categorySliderDot: {
+  width: 8,
+  height: 8,
+  borderRadius: 4,
+},
+
+categoryScrollContent: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+
+
+rotatedGridContainer: {
+  justifyContent: 'center',
+  alignItems: 'center',
+  width: '100%',
+  height: 300,  // Увеличил с 280 до 300 для больших кружков
+  paddingVertical: SPACING.xs,  // Уменьшил с SPACING.sm до SPACING.xs
+  marginVertical: SPACING.xs,   // Уменьшил с SPACING.sm до SPACING.xs
+},
+
+rotatedGrid: {
+  width: 240,   // Увеличил с 220 до 240
+  height: 240,  // Увеличил с 220 до 240
+  transform: [{ rotate: '45deg' }],
+  position: 'relative',
+},
+
+colorCircleRotated: {
+  position: 'absolute',
+  width: 58,    // Увеличил с 50 до 58
+  height: 58,   // Увеличил с 50 до 58
+  borderRadius: BORDER_RADIUS.full,
+  justifyContent: 'center',
+  alignItems: 'center',
+  elevation: 4,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 3 },
+  shadowOpacity: 0.3,
+  shadowRadius: 6,
+},
+
+// Стили слайдера иконок (ОБНОВЛЕННЫЕ)
+iconSliderHeader: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginBottom: SPACING.lg,
+  padding: SPACING.md,
+  borderRadius: BORDER_RADIUS.md,
+},
+
+iconSliderTitle: {
+  ...TYPOGRAPHY.h4,
+  fontWeight: '600',
+},
+
+iconSliderContainer: {
+  marginBottom: SPACING.sm,
+  minHeight: 140,          // ← Уменьши с 240 до 200
+},
+
+iconScrollContent: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+//
+iconSliderContent: {
+  flex: 1,
+  paddingHorizontal: SPACING.sm,
+  //paddingVertical: 10,     // ← Уменьши с 20 до 10
+  justifyContent: 'center',
+  alignItems: 'center',
+  minHeight: 160,          // ← Уменьши с 200 до 180
+},
+
+iconCategoryGrid: {
+  flexDirection: 'row',
+  flexWrap: 'wrap',
+  justifyContent: 'space-between',
+  gap: SPACING.sm,
+  paddingHorizontal: SPACING.sm,
+   marginBottom: 0,
+},
+
+iconSliderIndicators: {
+  flexDirection: 'row',
+  justifyContent: 'center',
+  alignItems: 'center',
+  gap: SPACING.sm,
+  paddingHorizontal: SPACING.md,
+  paddingBottom: SPACING.sm,
+  //marginTop: SPACING.xs,
+},
+
+iconSliderDot: {
+  width: 8,
+  height: 8,
+  borderRadius: 4,
+},
+
 });
+
+// === ФУНКЦИИ ДЛЯ ЭКСПОРТА КОНФИГУРАЦИИ ===
+export const getAnimationConfig = () => ANIMATION_CONFIG;
+export const updateAnimationConfig = (newConfig) => {
+  Object.assign(ANIMATION_CONFIG, newConfig);
+};
 
 export default HabitFormModal;
