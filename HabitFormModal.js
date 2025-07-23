@@ -2811,7 +2811,7 @@ iconScrollContent: {
   flexDirection: 'row',
   alignItems: 'center',
 },
-
+//
 iconSliderContent: {
   flex: 1,
   paddingHorizontal: SPACING.sm,
