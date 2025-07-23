@@ -2,7 +2,7 @@
 {
   "expo": {
     "name": "Трекер Привычек",
-    "slug": "habit-tracker-app",
+    "slug": "HabitTracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -55,7 +55,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "your-project-id"
+        "projectId": "5b6655b0-3944-4e17-aa16-52ad8fb8d479"
       }
     }
   }
