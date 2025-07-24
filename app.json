@@ -2,7 +2,8 @@
   "expo": {
     "name": "Трекер Привычек",
     "slug": "HabitTracker",
-    "version": "1.0.0",
+    "version": "1.0.1",
+    "runtimeVersion": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -11,25 +12,13 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.trekerprivychek.app",
-      "buildNumber": "1.0.0",
-      "infoPlist": {
-        "NSCameraUsageDescription": "Приложение может использовать камеру для добавления фото к привычкам",
-        "NSMicrophoneUsageDescription": "Приложение может использовать микрофон для голосовых заметок"
-      }
-    },
+    "assetBundlePatterns": ["**/*"],
     "android": {
+      "package": "com.trekerprivychek.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#4CAF50"
       },
-      "package": "com.trekerprivychek.app",
-      "versionCode": 1,
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
@@ -56,6 +45,9 @@
       "eas": {
         "projectId": "5b6655b0-3944-4e17-aa16-52ad8fb8d479"
       }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/5b6655b0-3944-4e17-aa16-52ad8fb8d479"
     }
   }
 }
