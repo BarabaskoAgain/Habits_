@@ -307,7 +307,7 @@ const MainApp = ({
     ]}>
       <View style={styles.progressHeader}>
         <Text style={[styles.progressTitle, { color: colors.text }]}>
-          Прогресс дня
+          Прогресс дня1
         </Text>
         <Text style={[styles.progressNumbers, { color: colors.primary }]}>
           {todayProgress.completed}/{todayProgress.total}

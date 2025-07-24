@@ -1043,35 +1043,36 @@ const fieldsOrder = ['name', 'description', 'category', 'type', 'weightGoal', 'd
        </Text>
      </View>
 
-     {/* Контейнер слайдера СО СВАЙПАМИ */}
+{/* Контейнер слайдера СО СВАЙПАМИ */}
      <View style={styles.categorySliderContainer}>
        <ScrollView
          horizontal
          pagingEnabled
          showsHorizontalScrollIndicator={false}
-        snapToInterval={SCREEN_WIDTH * 0.9 - 32} // Модальное окно (90% ширины) минус padding selectorContent (16*2=32)
+         snapToInterval={SCREEN_WIDTH * 0.9 - 32}
          decelerationRate="fast"
          contentContainerStyle={styles.categoryScrollContent}
-            onScroll={(event) => {
-              const offsetX = event.nativeEvent.contentOffset.x;
-              const pageWidth = SCREEN_WIDTH * 0.9 - 32;
-              const newIndex = Math.round(offsetX / pageWidth);
-              const maxIndex = Object.keys(HABIT_CATEGORY_TYPES).length - 1;
-              const clampedIndex = Math.max(0, Math.min(newIndex, maxIndex));
+         onScroll={(event) => {
+           const offsetX = event.nativeEvent.contentOffset.x;
+           const pageWidth = SCREEN_WIDTH * 0.9 - 32;
+           const newIndex = Math.round(offsetX / pageWidth);
+           const maxIndex = Object.keys(HABIT_CATEGORY_TYPES).length - 1;
+           const clampedIndex = Math.max(0, Math.min(newIndex, maxIndex));
 
-              if (clampedIndex !== currentCategoryType) {
-                setCurrentCategoryType(clampedIndex);
-              }
-            }}
-            scrollEventThrottle={16}
+           if (clampedIndex !== currentCategoryType) {
+             setCurrentCategoryType(clampedIndex);
+           }
+         }}
+         scrollEventThrottle={16}
          ref={categoryScrollRef}
        >
          {Object.values(HABIT_CATEGORY_TYPES).map((categoryGroup, groupIndex) => (
            <View
              key={groupIndex}
-           style={[
-             styles.categorySliderContent,
-             { width: SCREEN_WIDTH * 0.9 - 32 }           ]}
+             style={[
+               styles.categorySliderContent,
+               { width: SCREEN_WIDTH * 0.9 - 32 }
+             ]}
            >
              <View style={styles.categoriesGrid}>
                {categoryGroup.categories.map(categoryKey => {
@@ -1104,32 +1105,31 @@ const fieldsOrder = ['name', 'description', 'category', 'type', 'weightGoal', 'd
            </View>
          ))}
        </ScrollView>
-     </View>
 
-     {/* Индикаторы страниц (обновленные) */}
-     <View style={styles.categorySliderIndicators}>
-       {Object.keys(HABIT_CATEGORY_TYPES).map((_, index) => (
-         <TouchableOpacity
-           key={index}
-           style={[
-             styles.categorySliderDot,
-             {
-               backgroundColor: index === currentCategoryType
-                 ? colors.primary
-                 : colors.border
-             }
-           ]}
-      onPress={() => {
-        // Программный переход к странице
-        const pageWidth = SCREEN_WIDTH * 0.9 - 32;
-        categoryScrollRef.current?.scrollTo({
-          x: index * pageWidth,
-          animated: true
-        });
-        setCurrentCategoryType(index);
-      }}
-         />
-       ))}
+       {/* Индикаторы страниц ВНУТРИ контейнера */}
+       <View style={styles.categorySliderIndicators}>
+         {Object.keys(HABIT_CATEGORY_TYPES).map((_, index) => (
+           <TouchableOpacity
+             key={index}
+             style={[
+               styles.categorySliderDot,
+               {
+                 backgroundColor: index === currentCategoryType
+                   ? colors.primary
+                   : colors.border
+               }
+             ]}
+             onPress={() => {
+               const pageWidth = SCREEN_WIDTH * 0.9 - 32;
+               categoryScrollRef.current?.scrollTo({
+                 x: index * pageWidth,
+                 animated: true
+               });
+               setCurrentCategoryType(index);
+             }}
+           />
+         ))}
+       </View>
      </View>
    </View>
  )}
@@ -2054,7 +2054,7 @@ const styles = StyleSheet.create({
   
   selectorContainer: {
     width: SCREEN_WIDTH * 0.9,
-    maxHeight: '70%',
+    maxHeight: '85%',
     borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1,
     elevation: 5,
@@ -2695,11 +2695,9 @@ categorySliderTitle: {
   fontWeight: '600',
 },
 
-// Изменить categorySliderContainer
 categorySliderContainer: {
-
-  marginBottom: SPACING.lg,
-  minHeight: 280,
+  marginBottom: SPACING.sm,
+  minHeight: 240,
 },
 
 categorySliderArrow: {
@@ -2718,10 +2716,14 @@ categorySliderArrow: {
 categorySliderContent: {
   flex: 1,
   paddingHorizontal: SPACING.md,
+  justifyContent: 'center',
+  alignItems: 'center',
 },
 
 categoriesGrid: {
   gap: SPACING.sm,
+  justifyContent: 'center',
+  alignItems: 'center',
 },
 
 categoryOptionCompact: {
@@ -2743,6 +2745,8 @@ categorySliderIndicators: {
   justifyContent: 'center',
   alignItems: 'center',
   gap: SPACING.sm,
+  paddingTop: SPACING.md,
+  paddingBottom: SPACING.sm,
 },
 
 categorySliderDot: {
