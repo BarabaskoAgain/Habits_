@@ -1,4 +1,3 @@
-
 {
   "expo": {
     "name": "Трекер Привычек",
@@ -17,7 +16,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.habittracker",
+      "bundleIdentifier": "com.trekerprivychek.app",
       "buildNumber": "1.0.0",
       "infoPlist": {
         "NSCameraUsageDescription": "Приложение может использовать камеру для добавления фото к привычкам",
@@ -27,9 +26,9 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#6366f1"
+        "backgroundColor": "#4CAF50"
       },
-      "package": "com.yourcompany.habittracker",
+      "package": "com.trekerprivychek.app",
       "versionCode": 1,
       "permissions": [
         "CAMERA",
