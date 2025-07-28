@@ -240,9 +240,19 @@ const MainApp = ({
             />
           </View>
           <View style={styles.headerInfo}>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>
-              {activeTab === 'archive' ? 'Архив' : 'Привычки'}
+        <Text style={[styles.headerTitle, { color: colors.text }]}>
+          {activeTab === 'archive' ? 'Архив' : 'Привычки'}
+          {activeTab !== 'archive' && settings.developer?.showBuildInfo && (
+            <Text style={[styles.buildInfo, { color: colors.textSecondary }]}>
+              {' (' + new Date().toLocaleString('ru-RU', {
+                day: '2-digit',
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+              }) + ')'}
             </Text>
+          )}
+        </Text>
             <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
               {activeTab === 'archive' 
                 ? `${archivedHabits.length} завершенных`
@@ -550,10 +560,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   
-  headerTitle: {
-    ...TYPOGRAPHY.h3,
-    fontWeight: 'bold',
-  },
+headerTitle: {
+  ...TYPOGRAPHY.h3,
+  fontWeight: 'bold',
+},
+
+buildInfo: {
+  fontSize: 12,
+  fontWeight: 'normal',
+  opacity: 0.7,
+},
   
   headerSubtitle: {
     ...TYPOGRAPHY.bodyMedium,

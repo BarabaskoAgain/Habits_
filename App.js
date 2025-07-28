@@ -13,7 +13,6 @@ import {
   Platform,
   StyleSheet,
   Dimensions,
-  Animated,
   SafeAreaView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -56,21 +55,15 @@ const AppContent = () => {
   const [archivedHabits, setArchivedHabits] = useState([]); // НОВОЕ: Архивированные привычки
   const [achievements, setAchievements] = useState([]);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
-  const [isLoading, setIsLoading] = useState(true);
+ // isLoading убрано - используем только стандартный Expo splash
   const [appState, setAppState] = useState(AppState.currentState);
 
   // === UI СОСТОЯНИЕ ===
   const [showAddHabit, setShowAddHabit] = useState(false);
   const [editingHabit, setEditingHabit] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [isReady, setIsReady] = useState(false);
-  const [isFirstLaunch, setIsFirstLaunch] = useState(false);
-  const [notificationsInitialized, setNotificationsInitialized] =
-    useState(false);
-
-  // === АНИМАЦИИ ===
-  const splashAnim = useRef(new Animated.Value(1)).current;
-  const appAnim = useRef(new Animated.Value(0)).current;
+const [isFirstLaunch, setIsFirstLaunch] = useState(false);
+const [notificationsInitialized, setNotificationsInitialized] = useState(false);
 
   // === ЦВЕТОВАЯ СХЕМА ===
   const colors =
@@ -145,7 +138,7 @@ const AppContent = () => {
     } catch (error) {
       console.error('Ошибка проверки достижений:', error);
     }
-  }, [habits, achievements, isReady]);
+  }, [habits, achievements]);
 
   // === ФУНКЦИИ СОХРАНЕНИЯ ===
   const saveAchievements = useCallback(async (newAchievements) => {
@@ -494,22 +487,18 @@ const archiveHabit = useCallback(async (habitId) => {
             text: 'Перезапустить',
             onPress: () => {
               // Прямая инициализация
-              setIsLoading(true);
-              Promise.all([
-                loadHabits(),
-                loadAchievements(),
-                loadSettings(),
-                loadArchivedHabits(),
-              ])
-                .then(() => {
-                  checkForNewAchievements();
-                })
-                .catch((err) => {
-                  console.error('Повторная ошибка инициализации:', err);
-                })
-                .finally(() => {
-                  setIsLoading(false);
-                });
+Promise.all([
+  loadHabits(),
+  loadAchievements(),
+  loadSettings(),
+  loadArchivedHabits(),
+])
+  .then(() => {
+    checkForNewAchievements();
+  })
+  .catch((err) => {
+    console.error('Повторная ошибка инициализации:', err);
+  });
             },
           },
         ]
@@ -524,55 +513,35 @@ const archiveHabit = useCallback(async (habitId) => {
     ]
   );
 
-  // === ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ ===
-  const initializeApp = useCallback(async () => {
-    try {
-      setIsLoading(true);
+const initializeApp = useCallback(async () => {
+  try {
+    // Загружаем все данные параллельно
+    const [loadedHabits, loadedAchievements, loadedSettings, loadedArchived] =
+      await Promise.all([
+        loadHabits(),
+        loadAchievements(),
+        loadSettings(),
+        loadArchivedHabits(),
+      ]);
 
-      // Загружаем все данные параллельно
-      const [loadedHabits, loadedAchievements, loadedSettings, loadedArchived] =
-        await Promise.all([
-          loadHabits(),
-          loadAchievements(),
-          loadSettings(),
-          loadArchivedHabits(),
-        ]);
+    console.log('Загружено:', {
+      habits: loadedHabits.length,
+      achievements: loadedAchievements.length,
+      archived: loadedArchived.length,
+      settings: loadedSettings,
+    });
 
-      console.log('Загружено:', {
-        habits: loadedHabits.length,
-        achievements: loadedAchievements.length,
-        archived: loadedArchived.length,
-        settings: loadedSettings,
-      });
-
-      // Запускаем анимацию появления
-      Animated.sequence([
-        Animated.timing(splashAnim, {
-          toValue: 0,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-        Animated.timing(appAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        setIsReady(true);
-      });
-
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Ошибка инициализации:', error);
-      handleInitializationError(error);
-    }
-  }, [
-    loadHabits,
-    loadAchievements,
-    loadSettings,
-    loadArchivedHabits,
-    handleInitializationError,
-  ]);
+  } catch (error) {
+    console.error('Ошибка инициализации:', error);
+    handleInitializationError(error);
+  }
+}, [
+  loadHabits,
+  loadAchievements,
+  loadSettings,
+  loadArchivedHabits,
+  handleInitializationError,
+]);
 
   // === ИСПРАВЛЕННАЯ ИНИЦИАЛИЗАЦИЯ УВЕДОМЛЕНИЙ (ТОЛЬКО ОДИН РАЗ) ===
   useEffect(() => {
@@ -604,10 +573,10 @@ const archiveHabit = useCallback(async (habitId) => {
           setNotificationsInitialized(true); // Помечаем как инициализированные даже при ошибке
         }
       }
-    };
+    }
 
     initializeNotifications();
-  }, [isReady, habits, notificationsInitialized, settings]);
+  }, [habits, notificationsInitialized, settings]);
 
   // === ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ ПРИ МОНТИРОВАНИИ ===
   useEffect(() => {
@@ -961,69 +930,7 @@ if (notificationsInitialized && settings.notifications?.achievement) {
     setEditingHabit(null);
   };
 
-  // === РЕНДЕР ЗАСТАВКИ ===
-  const renderSplashScreen = () => (
-    <Animated.View
-      style={[
-        styles.splashContainer,
-        {
-          backgroundColor: colors.primary,
-          opacity: splashAnim,
-        },
-      ]}>
-      <View style={styles.splashContent}>
-        <Animated.View
-          style={[
-            styles.splashLogo,
-            {
-              transform: [
-                {
-                  scale: splashAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.8, 1],
-                  }),
-                },
-              ],
-            },
-          ]}>
-          <View style={styles.logoIcon}>
-            <Text style={styles.logoEmoji}>✓</Text>
-          </View>
-        </Animated.View>
-
-        <Animated.Text
-          style={[
-            styles.splashTitle,
-            {
-              opacity: splashAnim,
-              transform: [
-                {
-                  translateY: splashAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [20, 0],
-                  }),
-                },
-              ],
-            },
-          ]}>
-          Трекер Привычек
-        </Animated.Text>
-
-        <Animated.Text
-          style={[
-            styles.splashSubtitle,
-            {
-              opacity: splashAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 0.8],
-              }),
-            },
-          ]}>
-          Простые, количественные привычки и отслеживание веса
-        </Animated.Text>
-      </View>
-    </Animated.View>
-  );
+ // Сплеш-скрин удален - используем стандартный Expo splash
 
   // === ОСНОВНОЙ РЕНДЕР С ПРАВИЛЬНЫМИ ОТСТУПАМИ ===
   return (
@@ -1034,24 +941,9 @@ if (notificationsInitialized && settings.notifications?.achievement) {
         translucent={false}
       />
 
-      {/* Основное приложение */}
-      {!isReady ? null : (
-        <Animated.View
-          style={[
-            styles.appContainer,
-            {
-              opacity: appAnim,
-              transform: [
-                {
-                  scale: appAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.95, 1],
-                  }),
-                },
-              ],
-            },
-          ]}>
-          <MainApp
+{/* Основное приложение */}
+<View style={styles.appContainer}>
+    <MainApp
             habits={habits}
             archivedHabits={archivedHabits}
             achievements={achievements}
@@ -1074,11 +966,12 @@ if (notificationsInitialized && settings.notifications?.achievement) {
             //onAchievementUnlock={unlockAchievement}
             safeAreaInsets={insets}
           />
-        </Animated.View>
-      )}
+        </View>
 
-      {/* Заставка */}
-      {!isReady && renderSplashScreen()}
+
+      {/* Стандартный Expo splash используется автоматически */}
+
+{/* Стандартный Expo splash используется автоматически */}
 
       {/* Модальные окна */}
       <HabitFormModal
@@ -1119,58 +1012,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // === ЗАСТАВКА ===
-  splashContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
 
-  splashContent: {
-    alignItems: 'center',
-  },
-
-  splashLogo: {
-    marginBottom: 32,
-  },
-
-  logoIcon: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-
-  logoEmoji: {
-    fontSize: 48,
-    color: '#ffffff',
-    fontWeight: 'bold',
-  },
-
-  splashTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-
-  splashSubtitle: {
-    fontSize: 16,
-    color: '#ffffff',
-    textAlign: 'center',
-    paddingHorizontal: 32,
-    lineHeight: 24,
-  },
 });
 
 export default App;

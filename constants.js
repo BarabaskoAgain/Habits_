@@ -551,6 +551,9 @@ export const DEFAULT_SETTINGS = {
     unit: 'kg', // kg или lbs
     showBMI: false,
     reminderTime: '20:00' // вечернее взвешивание
+  },
+  developer: {
+    showBuildInfo: false // Показывать дату и время последнего обновления
   }
 };
 

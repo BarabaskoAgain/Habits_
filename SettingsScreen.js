@@ -13,6 +13,7 @@ import {
   Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 
 // Импорт констант
 import { 
@@ -59,16 +60,27 @@ const SettingsScreen = ({
     onSettingsChange(newSettings);
   };
 
-  const updateButtonAnimationSetting = (key, value) => {
-    const newSettings = {
-      ...settings,
-      buttonAnimation: {
-        ...settings.buttonAnimation,
-        [key]: value
-      }
-    };
-    onSettingsChange(newSettings);
+const updateButtonAnimationSetting = (key, value) => {
+  const newSettings = {
+    ...settings,
+    buttonAnimation: {
+      ...settings.buttonAnimation,
+      [key]: value
+    }
   };
+  onSettingsChange(newSettings);
+};
+
+const updateDeveloperSetting = (key, value) => {
+  const newSettings = {
+    ...settings,
+    developer: {
+      ...settings.developer,
+      [key]: value
+    }
+  };
+  onSettingsChange(newSettings);
+};
 
   const formatSpeedLabel = (speed) => {
     if (speed >= 1) {
@@ -521,11 +533,18 @@ const SettingsScreen = ({
           {/* Приложение */}
           {renderSection('О приложении', (
             <>
-              {renderSettingItem({
-                title: 'Версия',
-                subtitle: 'Текущая версия приложения',
-                value: '1.0.0'
-              })}
+{renderSettingItem({
+  title: 'Версия',
+  subtitle: 'Текущая версия приложения',
+  value: Constants.expoConfig?.version || '1.0.0'
+})}
+
+{renderSettingItem({
+  title: 'Показывать дату обновления',
+  subtitle: 'Дата и время в заголовке приложения',
+  value: settings.developer?.showBuildInfo || false,
+  onToggle: (value) => updateDeveloperSetting('showBuildInfo', value)
+})}
 
               {renderSettingItem({
                 title: 'Поддержка',
