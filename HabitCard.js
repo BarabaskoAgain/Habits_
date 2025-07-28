@@ -3,7 +3,7 @@
 // HabitCard.js - ОРИГИНАЛЬНЫЙ ДИЗАЙН + КНОПКА АРХИВА
 // ====================================
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,7 @@ import {
   StyleSheet,
   Alert,
   TextInput,
-  Modal,
-  ScrollView,
-  Platform,
-  Vibration
+  Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEMES, SPACING, BORDER_RADIUS, TYPOGRAPHY, WEIGHT_UTILS, MEASUREMENT_UNITS } from './constants';
@@ -34,9 +31,7 @@ const HabitCard = ({
   const [showValueInput, setShowValueInput] = useState(false);
   const [showWeightInput, setShowWeightInput] = useState(false);
   const [inputValue, setInputValue] = useState('');
-  const [selectedValue, setSelectedValue] = useState(1);
   const [weightValue, setWeightValue] = useState('');
-  const valueScrollRef = useRef(null);
   
   const colors = THEMES[theme][isDarkMode ? 'dark' : 'light'];
   
@@ -94,26 +89,17 @@ displayValue = `${currentValue} / ${targetValue} ${unitLabel}`;
       setWeightValue(currentValue > 0 ? currentValue.toString() : targetValue.toString());
       setShowWeightInput(true);
     } else {
-      // Для количественных привычек - инициализируем слайдер
-      const initialValue = currentValue > 0 ? currentValue : targetValue;
-      setSelectedValue(initialValue);
+      // Для количественных привычек
+      setInputValue(targetValue.toString());
       setShowValueInput(true);
-
-      // Устанавливаем позицию слайдера после открытия модального окна
-      setTimeout(() => {
-        const scrollPosition = (initialValue - 1) * 50;
-        valueScrollRef.current?.scrollTo({
-          y: scrollPosition,
-          animated: false
-        });
-      }, 100);
     }
   };
 
   const handleValueSubmit = () => {
-    onUpdateValue(habit.id, selectedDate, selectedValue);
+    const value = parseInt(inputValue) || 0;
+    onUpdateValue(habit.id, selectedDate, value);
     setShowValueInput(false);
-    setSelectedValue(1);
+    setInputValue('');
   };
 
   // ИСПРАВЛЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ ВЕСА
@@ -227,147 +213,85 @@ displayValue = `${currentValue} / ${targetValue} ${unitLabel}`;
     setShowActions(!showActions);
   };
 
-// Рендер модального окна для ввода обычных значений со слайдером
-  const renderValueModal = () => {
-    const unitLabel = habit.unit && MEASUREMENT_UNITS[habit.unit] ?
-      MEASUREMENT_UNITS[habit.unit].shortLabel : 'раз';
-
-    // Создаем массив значений от 1 до 999
-    const values = Array.from({length: 999}, (_, i) => i + 1);
-
-    // Обработчик скролла слайдера
-    const handleValueScrollEnd = useCallback((event) => {
-      const offsetY = event.nativeEvent.contentOffset.y;
-      const index = Math.round(offsetY / 50);
-      const clampedIndex = Math.max(0, Math.min(998, index));
-      const newValue = clampedIndex + 1;
-
-      if (newValue !== selectedValue) {
-        setSelectedValue(newValue);
-
-        // Haptic feedback
-        if (Platform.OS === 'ios') {
-          Vibration.vibrate(10);
-        }
-      }
-    }, [selectedValue]);
-
-    // Обработчик завершения скролла для точного позиционирования
-    const handleValueScrollDrag = useCallback((event) => {
-      const offsetY = event.nativeEvent.contentOffset.y;
-      const index = Math.round(offsetY / 50);
-      const clampedIndex = Math.max(0, Math.min(998, index));
-
-      valueScrollRef.current?.scrollTo({
-        y: clampedIndex * 50,
-        animated: true
-      });
-    }, []);
-
-    // Рендер элемента значения
-    const renderValueItem = useCallback((value) => {
-      const isCenter = selectedValue === value;
-      const distance = Math.abs(selectedValue - value);
-      const opacity = distance === 0 ? 1.0 :
-                      distance === 1 ? 0.6 :
-                      distance === 2 ? 0.3 : 0.1;
-
-      return (
-        <View
-          key={value}
-          style={[
-            styles.valueSliderItem,
-            {
-              opacity: opacity,
-              transform: [{
-                scale: isCenter ? 1.2 : 1.0
-              }],
-            }
-          ]}
-        >
-          <Text style={[
-            styles.valueSliderText,
-            {
-              color: isCenter ? colors.primary : colors.text,
-              fontWeight: isCenter ? 'bold' : 'normal'
-            }
-          ]}>
-            {value}
+  // Рендер модального окна для ввода обычных значений
+  const renderValueModal = () => (
+    <Modal
+      visible={showValueInput}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowValueInput(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.valueModal, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>
+            {habit.name}
           </Text>
-        </View>
-      );
-    }, [selectedValue, colors]);
 
-    return (
-      <Modal
-        visible={showValueInput}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowValueInput(false)}
-      >
-        <View style={styles.valueModalOverlay}>
-          <View style={[styles.valueModalContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.valueModalTitle, { color: colors.text }]}>
-              {habit.name}
-            </Text>
+          <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+            Цель: {targetValue} {habit.unit && MEASUREMENT_UNITS[habit.unit] ? MEASUREMENT_UNITS[habit.unit].shortLabel : 'раз'}
+          </Text>
 
-            <Text style={[styles.valueModalSubtitle, { color: colors.textSecondary }]}>
-              {new Date(selectedDate).toLocaleDateString('ru-RU', {
-                day: 'numeric',
-                month: 'long',
-                weekday: 'short'
-              })} • Цель: {targetValue} {unitLabel}
-            </Text>
+          <TextInput
+            style={[styles.valueInput, {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              color: colors.text
+            }]}
+            value={inputValue}
+            onChangeText={setInputValue}
+            placeholder={`Введите значение (0-${targetValue * 2})`}
+            placeholderTextColor={colors.textSecondary}
+            keyboardType="numeric"
+            autoFocus
+          />
 
-            {/* СЛАЙДЕР ЗНАЧЕНИЙ */}
-            <View style={styles.valueSliderContainer}>
-              <View style={styles.valueSliderWrapper}>
-                <View style={[styles.valueSliderFocusZone, { borderColor: colors.primary }]} />
-                <ScrollView
-                  ref={valueScrollRef}
-                  style={styles.valueSliderScroll}
-                  showsVerticalScrollIndicator={false}
-                  snapToInterval={50}
-                  decelerationRate="fast"
-                  onMomentumScrollEnd={handleValueScrollEnd}
-                  onScrollEndDrag={handleValueScrollDrag}
-                >
-                  {/* Верхний отступ для центрирования */}
-                  <View style={{ height: 100 }} />
+          <View style={styles.quickButtons}>
+            <TouchableOpacity
+              style={[styles.quickButton, { backgroundColor: colors.error }]}
+              onPress={() => {
+                const currentInput = parseInt(inputValue) || 0;
+                const newValue = Math.max(0, currentInput - 1);
+                setInputValue(newValue.toString());
+              }}
+            >
+              <Ionicons name="remove" size={20} color="#ffffff" />
+            </TouchableOpacity>
 
-                  {values.map(renderValueItem)}
+            <TouchableOpacity
+              style={[styles.quickButton, { backgroundColor: colors.success }]}
+              onPress={() => {
+                const currentInput = parseInt(inputValue) || 0;
+                const newValue = currentInput + 1;
+                setInputValue(newValue.toString());
+              }}
+            >
+              <Ionicons name="add" size={20} color="#ffffff" />
+            </TouchableOpacity>
+          </View>
 
-                  {/* Нижний отступ для центрирования */}
-                  <View style={{ height: 100 }} />
-                </ScrollView>
-              </View>
-            </View>
+          <View style={styles.modalButtons}>
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: colors.surface }]}
+              onPress={() => setShowValueInput(false)}
+            >
+              <Text style={[styles.modalButtonText, { color: colors.textSecondary }]}>
+                Отмена
+              </Text>
+            </TouchableOpacity>
 
-            {/* Кнопки */}
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: colors.surface }]}
-                onPress={() => setShowValueInput(false)}
-              >
-                <Text style={[styles.modalButtonText, { color: colors.textSecondary }]}>
-                  Отмена
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: colors.primary }]}
-                onPress={handleValueSubmit}
-              >
-                <Text style={[styles.modalButtonText, { color: '#ffffff' }]}>
-                  Сохранить
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: colors.primary }]}
+              onPress={handleValueSubmit}
+            >
+              <Text style={[styles.modalButtonText, { color: '#ffffff' }]}>
+                Сохранить
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
-      </Modal>
-    );
-  };
+      </View>
+    </Modal>
+  );
 
   // Рендер модального окна для ввода веса
   const renderWeightModal = () => (
@@ -948,92 +872,6 @@ container: {
     ...TYPOGRAPHY.button,
     fontWeight: '600',
   },
-
-  modalButtonText: {
-      ...TYPOGRAPHY.button,
-      fontWeight: '600',
-    },
-
-    // === СТИЛИ ДЛЯ СЛАЙДЕРА ЗНАЧЕНИЙ ===
-    valueModalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.7)',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-
-    valueModalContainer: {
-      width: '85%',
-      maxWidth: 350,
-      borderRadius: BORDER_RADIUS.xl,
-      borderWidth: 1,
-      padding: SPACING.xl,
-      elevation: 10,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 5 },
-      shadowOpacity: 0.3,
-      shadowRadius: 10,
-    },
-
-    valueModalTitle: {
-      ...TYPOGRAPHY.h3,
-      fontWeight: 'bold',
-      textAlign: 'center',
-      marginBottom: SPACING.sm,
-    },
-
-    valueModalSubtitle: {
-      ...TYPOGRAPHY.bodyMedium,
-      textAlign: 'center',
-      marginBottom: SPACING.lg,
-      opacity: 0.8,
-    },
-
-    // Контейнер слайдера
-    valueSliderContainer: {
-      height: 250,
-      marginVertical: SPACING.lg,
-    },
-
-    valueSliderWrapper: {
-      flex: 1,
-      position: 'relative',
-    },
-
-    // Центральная зона фокуса (как в time picker)
-    valueSliderFocusZone: {
-      position: 'absolute',
-      top: '50%',
-      left: 20,
-      right: 20,
-      height: 50,
-      marginTop: -25,
-      borderWidth: 2,
-      borderRadius: BORDER_RADIUS.md,
-      backgroundColor: 'transparent',
-      zIndex: 1,
-    },
-
-    // Скролл область
-    valueSliderScroll: {
-      flex: 1,
-    },
-
-    // Элемент значения
-    valueSliderItem: {
-      height: 50,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingHorizontal: SPACING.md,
-    },
-
-    // Текст значения
-    valueSliderText: {
-      fontSize: 24,
-      fontWeight: 'bold',
-      textAlign: 'center',
-    },
-
 });
 
 export default HabitCard;
