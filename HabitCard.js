@@ -330,20 +330,35 @@ const renderWeightModal = () => (
       onRequestClose={() => setShowWeightInput(false)}
     >
       <View style={styles.modalOverlay}>
-        <View style={[styles.weightPickerModal, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.modalTitle, { color: colors.text }]}>
-            Вес сегодня
-          </Text>
 
-          <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
-            Цель: {targetValue} кг
-          </Text>
+<View style={[styles.weightPickerModal, { backgroundColor: colors.card, borderColor: colors.border }]}>
+{/* Красивый заголовок с фоном */}
+<View style={[styles.weightSliderHeader, {
+  backgroundColor: colors.primary + '15',
+  flexDirection: 'column',
+  paddingVertical: SPACING.lg
+}]}>
+  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.xs }}>
+    <Text style={styles.weightIcon}>⚖️</Text>
+    <Text style={[styles.weightSliderTitle, { color: colors.text }]}>
+      Вес сегодня
+    </Text>
+  </View>
+
+  <Text style={[styles.selectorSubtitle, { color: colors.textSecondary, marginBottom: 0 }]}>
+    Цель: {targetValue} кг
+    {currentValue > 0 && (
+      <Text style={{ color: Math.abs(currentValue - targetValue) <= 1 ? colors.success : colors.primary }}>
+        {' '}({currentValue > targetValue ? '+' : ''}{(currentValue - targetValue).toFixed(1)} кг)
+      </Text>
+    )}
+  </Text>
+</View>
 
           {/* === ВЕСОВОЙ PICKER === */}
           <View style={styles.weightPickerContainer}>
             {/* Целая часть (35-200) */}
             <View style={styles.weightPickerColumn}>
-              <Text style={[styles.weightPickerLabel, { color: colors.textSecondary }]}>кг</Text>
               <View style={styles.weightPickerWrapper}>
                 {/* Центральная зона фокуса */}
                 <View style={[styles.weightPickerFocusZone, { borderColor: colors.primary }]} />
@@ -417,7 +432,6 @@ const renderWeightModal = () => (
 
             {/* Дробная часть (0-9) */}
             <View style={styles.weightPickerColumn}>
-              <Text style={[styles.weightPickerLabel, { color: colors.textSecondary }]}>десятые</Text>
               <View style={styles.weightPickerWrapper}>
                 {/* Центральная зона фокуса */}
                 <View style={[styles.weightPickerFocusZone, { borderColor: colors.primary }]} />
@@ -467,8 +481,9 @@ const renderWeightModal = () => (
                           style={[
                             styles.weightPickerItemText,
                             {
-                              color: isCenter ? colors.primary : colors.text,
-                              fontWeight: isCenter ? 'bold' : 'normal',
+                            color: isCenter ? colors.primary : colors.text,
+                            fontWeight: isCenter ? 'bold' : 'normal',
+                            fontSize: isCenter ? 24 : 18,
                             }
                           ]}
                         >
@@ -486,7 +501,6 @@ const renderWeightModal = () => (
 
             {/* Единицы измерения */}
             <View style={styles.weightPickerUnitColumn}>
-              <Text style={[styles.weightPickerUnit, { color: colors.text }]}>кг</Text>
             </View>
           </View>
 
@@ -496,14 +510,19 @@ const renderWeightModal = () => (
           </Text>
 
           <View style={styles.modalButtons}>
-            <TouchableOpacity
-              style={[styles.modalButtonCancel, { borderColor: colors.border }]}
-              onPress={() => setShowWeightInput(false)}
-            >
-              <Text style={[styles.modalButtonText, { color: colors.text }]}>
-                Отмена
-              </Text>
-            </TouchableOpacity>
+
+<TouchableOpacity
+  style={[styles.modalButton, {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border
+  }]}
+  onPress={() => setShowWeightInput(false)}
+>
+  <Text style={[styles.modalButtonText, { color: colors.textSecondary }]}>
+    Отмена
+  </Text>
+</TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.modalButtonSave, { backgroundColor: colors.primary }]}
@@ -627,15 +646,7 @@ const renderWeightModal = () => (
                 </Text>
                 
                 
-                {/* Индикатор записи для веса */}
-                {habit.type === 'weight' && currentValue > 0 && (
-                  <View style={styles.weightIndicator}>
-                    <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-                    <Text style={[styles.weightIndicatorText, { color: colors.success }]}>
-                      Записано
-                    </Text>
-                  </View>
-                )}
+
               </View>
             </View>
           </View>
@@ -1028,23 +1039,23 @@ container: {
       fontWeight: '600',
     },
 
-  // === СТИЛИ ДЛЯ ВЕСОВОГО PICKER'А (КОПИЯ СТИЛЕЙ ВРЕМЕНИ) ===
-  weightPickerModal: {
-    backgroundColor: '#ffffff',
-    borderRadius: BORDER_RADIUS.xl,
-    borderWidth: 1,
-    padding: SPACING.lg,
-    width: '100%',
-    maxWidth: 300,
-  },
+weightPickerModal: {
+  backgroundColor: '#ffffff',
+  borderRadius: BORDER_RADIUS.xl,
+  borderWidth: 1,
+  padding: SPACING.xl,
+  width: '100%',
+  maxWidth: 320,
+},
 
-  weightPickerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 240,
-    marginVertical: SPACING.md,
-  },
+weightPickerContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: 240,
+  marginTop: SPACING.md,
+  marginBottom: SPACING.xl,
+},
 
   weightPickerColumn: {
     flex: 1,
@@ -1111,12 +1122,44 @@ container: {
     fontWeight: '600',
   },
 
-  weightCurrentValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: SPACING.md,
-  },
+ weightCurrentValue: {
+   fontSize: 28,
+   fontWeight: 'bold',
+   textAlign: 'center',
+   marginBottom: SPACING.md,
+ },
+
+ selectorTitle: {
+   ...TYPOGRAPHY.h4,
+   fontWeight: '600',
+   marginBottom: SPACING.xs,
+   textAlign: 'center',
+ },
+
+ selectorSubtitle: {
+   ...TYPOGRAPHY.caption,
+   marginBottom: SPACING.md,
+   textAlign: 'center',
+ },
+
+ weightSliderHeader: {
+   flexDirection: 'row',
+   alignItems: 'center',
+   justifyContent: 'center',
+   marginBottom: SPACING.lg,
+   padding: SPACING.md,
+   borderRadius: BORDER_RADIUS.md,
+ },
+
+ weightIcon: {
+   fontSize: 24,
+   marginRight: SPACING.sm,
+ },
+
+ weightSliderTitle: {
+   ...TYPOGRAPHY.h4,
+   fontWeight: '600',
+ },
   });
 
   export default HabitCard;
