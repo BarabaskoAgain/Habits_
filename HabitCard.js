@@ -3,7 +3,7 @@
 // HabitCard.js - ОРИГИНАЛЬНЫЙ ДИЗАЙН + КНОПКА АРХИВА
 // ====================================
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,10 @@ import {
   StyleSheet,
   Alert,
   TextInput,
-  Modal
+  Modal,
+  Platform,
+  Vibration,
+  ScrollView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEMES, SPACING, BORDER_RADIUS, TYPOGRAPHY, WEIGHT_UTILS, MEASUREMENT_UNITS } from './constants';
@@ -32,6 +35,10 @@ const HabitCard = ({
   const [showWeightInput, setShowWeightInput] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [weightValue, setWeightValue] = useState('');
+
+  // === РЕФЫ ДЛЯ ВЕСОВОГО PICKER'А ===
+  const weightIntegerScrollRef = useRef(null);
+  const weightDecimalScrollRef = useRef(null);
   
   const colors = THEMES[theme][isDarkMode ? 'dark' : 'light'];
   
@@ -86,8 +93,30 @@ displayValue = `${currentValue} / ${targetValue} ${unitLabel}`;
       onToggle(habit.id, selectedDate);
     } else if (habit.type === 'weight') {
       // Для веса открываем специальный ввод
-      setWeightValue(currentValue > 0 ? currentValue.toString() : targetValue.toString());
+      const initialWeight = currentValue > 0 ? currentValue : targetValue;
+      setWeightValue(initialWeight.toString());
       setShowWeightInput(true);
+
+      // Устанавливаем начальные позиции скроллов после небольшой задержки
+      setTimeout(() => {
+        const weightParts = initialWeight.toString().split('.');
+        const integerPart = parseInt(weightParts[0]) || 70;
+        const decimalPart = weightParts[1] ? parseInt(weightParts[1][0]) : 0;
+
+        // Позиционируем скроллы (35-200 кг)
+        const integerIndex = Math.max(0, Math.min(165, integerPart - 35));
+        const decimalIndex = Math.max(0, Math.min(9, decimalPart));
+
+        weightIntegerScrollRef.current?.scrollTo({
+          y: integerIndex * 40,
+          animated: false
+        });
+
+        weightDecimalScrollRef.current?.scrollTo({
+          y: decimalIndex * 40,
+          animated: false
+        });
+      }, 100);
     } else {
       // Для количественных привычек
       setInputValue(targetValue.toString());
@@ -293,65 +322,191 @@ displayValue = `${currentValue} / ${targetValue} ${unitLabel}`;
     </Modal>
   );
 
-  // Рендер модального окна для ввода веса
-  const renderWeightModal = () => (
+const renderWeightModal = () => (
     <Modal
       visible={showWeightInput}
       transparent
       animationType="fade"
-      onRequestClose={() => {
-        setShowWeightInput(false);
-        setWeightValue('');
-      }}
+      onRequestClose={() => setShowWeightInput(false)}
     >
       <View style={styles.modalOverlay}>
-        <View style={[styles.weightModal, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.weightPickerModal, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.modalTitle, { color: colors.text }]}>
-            Запись веса
+            Вес сегодня
           </Text>
-          
-          <View style={styles.weightInputContainer}>
-            <TextInput
-              style={[styles.weightInput, { 
-                backgroundColor: colors.surface, 
-                borderColor: colors.border,
-                color: colors.text 
-              }]}
-              value={weightValue}
-              onChangeText={setWeightValue}
-              placeholder="0.0"
-              placeholderTextColor={colors.textSecondary}
-              keyboardType="decimal-pad"
-              autoFocus
-            />
-            <Text style={[styles.weightUnit, { color: colors.text }]}>кг</Text>
-          </View>
-          
-          {weightValue && (
-            <View style={styles.weightPreview}>
-              <Text style={[styles.weightStatus, { 
-                color: parseFloat(weightValue) <= targetValue ? colors.success : colors.warning 
-              }]}>
-                {parseFloat(weightValue) <= targetValue ? 'В пределах цели' : 'Выше целевого веса'}
-              </Text>
+
+          <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+            Цель: {targetValue} кг
+          </Text>
+
+          {/* === ВЕСОВОЙ PICKER === */}
+          <View style={styles.weightPickerContainer}>
+            {/* Целая часть (35-200) */}
+            <View style={styles.weightPickerColumn}>
+              <Text style={[styles.weightPickerLabel, { color: colors.textSecondary }]}>кг</Text>
+              <View style={styles.weightPickerWrapper}>
+                {/* Центральная зона фокуса */}
+                <View style={[styles.weightPickerFocusZone, { borderColor: colors.primary }]} />
+
+                <ScrollView
+                  ref={weightIntegerScrollRef}
+                  style={styles.weightPickerScroll}
+                  showsVerticalScrollIndicator={false}
+                  snapToInterval={40}
+                  decelerationRate="fast"
+                  onMomentumScrollEnd={(event) => {
+                    const offsetY = event.nativeEvent.contentOffset.y;
+                    const index = Math.round(offsetY / 40);
+                    const clampedIndex = Math.max(0, Math.min(165, index));
+                    const integerPart = clampedIndex + 35;
+
+                    // Получаем текущую дробную часть
+                    const currentDecimal = weightValue.includes('.') ?
+                      parseFloat(`0.${weightValue.split('.')[1] || '0'}`) : 0;
+
+                    const newWeight = integerPart + currentDecimal;
+                    setWeightValue(newWeight.toFixed(1));
+
+                    // Haptic feedback
+                    if (Platform.OS === 'ios') {
+                      Vibration.vibrate(10);
+                    }
+                  }}
+                >
+                  {/* Верхний отступ для центрирования */}
+                  <View style={{ height: 80 }} />
+
+                  {Array.from({ length: 166 }, (_, i) => {
+                    const value = i + 35;
+                    const isCenter = Math.floor(parseFloat(weightValue)) === value;
+
+                    return (
+                      <View
+                        key={i}
+                        style={[
+                          styles.weightPickerItem,
+                          {
+                            backgroundColor: 'transparent',
+                            opacity: isCenter ? 1 : 0.4,
+                          }
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.weightPickerItemText,
+                            {
+                              color: isCenter ? colors.primary : colors.text,
+                              fontWeight: isCenter ? 'bold' : 'normal',
+                            }
+                          ]}
+                        >
+                          {value}
+                        </Text>
+                      </View>
+                    );
+                  })}
+
+                  {/* Нижний отступ для центрирования */}
+                  <View style={{ height: 80 }} />
+                </ScrollView>
+              </View>
             </View>
-          )}
-          
+
+            {/* Разделитель */}
+            <Text style={[styles.weightPickerSeparator, { color: colors.primary }]}>.</Text>
+
+            {/* Дробная часть (0-9) */}
+            <View style={styles.weightPickerColumn}>
+              <Text style={[styles.weightPickerLabel, { color: colors.textSecondary }]}>десятые</Text>
+              <View style={styles.weightPickerWrapper}>
+                {/* Центральная зона фокуса */}
+                <View style={[styles.weightPickerFocusZone, { borderColor: colors.primary }]} />
+
+                <ScrollView
+                  ref={weightDecimalScrollRef}
+                  style={styles.weightPickerScroll}
+                  showsVerticalScrollIndicator={false}
+                  snapToInterval={40}
+                  decelerationRate="fast"
+                  onMomentumScrollEnd={(event) => {
+                    const offsetY = event.nativeEvent.contentOffset.y;
+                    const index = Math.round(offsetY / 40);
+                    const clampedIndex = Math.max(0, Math.min(9, index));
+
+                    // Получаем текущую целую часть
+                    const integerPart = Math.floor(parseFloat(weightValue));
+                    const newWeight = integerPart + (clampedIndex / 10);
+                    setWeightValue(newWeight.toFixed(1));
+
+                    // Haptic feedback
+                    if (Platform.OS === 'ios') {
+                      Vibration.vibrate(10);
+                    }
+                  }}
+                >
+                  {/* Верхний отступ для центрирования */}
+                  <View style={{ height: 80 }} />
+
+                  {Array.from({ length: 10 }, (_, i) => {
+                    const decimal = (parseFloat(weightValue) % 1).toFixed(1).split('.')[1];
+                    const currentDecimal = parseInt(decimal) || 0;
+                    const isCenter = currentDecimal === i;
+
+                    return (
+                      <View
+                        key={i}
+                        style={[
+                          styles.weightPickerItem,
+                          {
+                            backgroundColor: 'transparent',
+                            opacity: isCenter ? 1 : 0.4,
+                          }
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.weightPickerItemText,
+                            {
+                              color: isCenter ? colors.primary : colors.text,
+                              fontWeight: isCenter ? 'bold' : 'normal',
+                            }
+                          ]}
+                        >
+                          {i}
+                        </Text>
+                      </View>
+                    );
+                  })}
+
+                  {/* Нижний отступ для центрирования */}
+                  <View style={{ height: 80 }} />
+                </ScrollView>
+              </View>
+            </View>
+
+            {/* Единицы измерения */}
+            <View style={styles.weightPickerUnitColumn}>
+              <Text style={[styles.weightPickerUnit, { color: colors.text }]}>кг</Text>
+            </View>
+          </View>
+
+          {/* Текущее значение */}
+          <Text style={[styles.weightCurrentValue, { color: colors.primary }]}>
+            {parseFloat(weightValue).toFixed(1)} кг
+          </Text>
+
           <View style={styles.modalButtons}>
             <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: colors.surface }]}
-              onPress={() => {
-                setShowWeightInput(false);
-                setWeightValue('');
-              }}
+              style={[styles.modalButtonCancel, { borderColor: colors.border }]}
+              onPress={() => setShowWeightInput(false)}
             >
-              <Text style={[styles.modalButtonText, { color: colors.textSecondary }]}>
+              <Text style={[styles.modalButtonText, { color: colors.text }]}>
                 Отмена
               </Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: colors.primary }]}
+              style={[styles.modalButtonSave, { backgroundColor: colors.primary }]}
               onPress={handleWeightSubmit}
             >
               <Text style={[styles.modalButtonText, { color: '#ffffff' }]}>
@@ -363,6 +518,8 @@ displayValue = `${currentValue} / ${targetValue} ${unitLabel}`;
       </View>
     </Modal>
   );
+
+
 // Функция расчета прогресса для весовых привычек
   const getWeightProgress = () => {
     if (!currentValue || currentValue === 0) return 0;
@@ -712,9 +869,7 @@ container: {
     alignItems: 'center',
   },
   
-  overachievementIcon: {
-    fontSize: 18,
-  },
+
   
   // === ДЕЙСТВИЯ С ПРЯМОУГОЛЬНЫМИ КНОПКАМИ ===
   actionsContainer: {
@@ -869,9 +1024,99 @@ container: {
   },
   
   modalButtonText: {
-    ...TYPOGRAPHY.button,
+      ...TYPOGRAPHY.button,
+      fontWeight: '600',
+    },
+
+  // === СТИЛИ ДЛЯ ВЕСОВОГО PICKER'А (КОПИЯ СТИЛЕЙ ВРЕМЕНИ) ===
+  weightPickerModal: {
+    backgroundColor: '#ffffff',
+    borderRadius: BORDER_RADIUS.xl,
+    borderWidth: 1,
+    padding: SPACING.lg,
+    width: '100%',
+    maxWidth: 300,
+  },
+
+  weightPickerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 240,
+    marginVertical: SPACING.md,
+  },
+
+  weightPickerColumn: {
+    flex: 1,
+    alignItems: 'center',
+  },
+
+  weightPickerUnitColumn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: SPACING.sm,
+  },
+
+  weightPickerLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: SPACING.sm,
+    textTransform: 'uppercase',
+  },
+
+  weightPickerWrapper: {
+    position: 'relative',
+    height: 200,
+    width: 80,
+  },
+
+  weightPickerFocusZone: {
+    position: 'absolute',
+    top: 80,
+    left: 0,
+    right: 0,
+    height: 40,
+    borderWidth: 2,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: 'transparent',
+    zIndex: 1,
+    pointerEvents: 'none',
+  },
+
+  weightPickerScroll: {
+    height: 200,
+    width: 80,
+  },
+
+  weightPickerItem: {
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 0,
+    borderRadius: BORDER_RADIUS.md,
+  },
+
+  weightPickerItemText: {
+    fontSize: 18,
+  },
+
+  weightPickerSeparator: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginHorizontal: SPACING.sm,
+  },
+
+  weightPickerUnit: {
+    fontSize: 16,
     fontWeight: '600',
   },
-});
 
-export default HabitCard;
+  weightCurrentValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: SPACING.md,
+  },
+  });
+
+  export default HabitCard;
