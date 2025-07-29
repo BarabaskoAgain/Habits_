@@ -354,7 +354,16 @@ const renderWeightModal = () => (
     )}
   </Text>
 </View>
-
+{/* Текущее значение с рамкой */}
+<View style={[styles.weightCurrentContainer, {
+  backgroundColor: colors.surface,
+  borderColor: colors.primary,
+  borderWidth: 2
+}]}>
+  <Text style={[styles.weightCurrentValue, { color: colors.primary }]}>
+    {parseFloat(weightValue).toFixed(1)} кг
+  </Text>
+</View>
           {/* === ВЕСОВОЙ PICKER === */}
           <View style={styles.weightPickerContainer}>
             {/* Целая часть (35-200) */}
@@ -428,7 +437,7 @@ const renderWeightModal = () => (
             </View>
 
             {/* Разделитель */}
-            <Text style={[styles.weightPickerSeparator, { color: colors.primary }]}>.</Text>
+<View style={{ width: SPACING.sm }} />
 
             {/* Дробная часть (0-9) */}
             <View style={styles.weightPickerColumn}>
@@ -504,35 +513,27 @@ const renderWeightModal = () => (
             </View>
           </View>
 
-          {/* Текущее значение */}
-          <Text style={[styles.weightCurrentValue, { color: colors.primary }]}>
-            {parseFloat(weightValue).toFixed(1)} кг
-          </Text>
 
-          <View style={styles.modalButtons}>
 
-<TouchableOpacity
-  style={[styles.modalButton, {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border
-  }]}
-  onPress={() => setShowWeightInput(false)}
->
-  <Text style={[styles.modalButtonText, { color: colors.textSecondary }]}>
-    Отмена
-  </Text>
-</TouchableOpacity>
+<View style={styles.modalButtons}>
+  <TouchableOpacity
+    style={[styles.modalButton, { backgroundColor: colors.surface }]}
+    onPress={() => setShowWeightInput(false)}
+  >
+    <Text style={[styles.modalButtonText, { color: colors.textSecondary }]}>
+      Отмена
+    </Text>
+  </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.modalButtonSave, { backgroundColor: colors.primary }]}
-              onPress={handleWeightSubmit}
-            >
-              <Text style={[styles.modalButtonText, { color: '#ffffff' }]}>
-                Сохранить
-              </Text>
-            </TouchableOpacity>
-          </View>
+  <TouchableOpacity
+    style={[styles.modalButton, { backgroundColor: colors.primary }]}
+    onPress={handleWeightSubmit}
+  >
+    <Text style={[styles.modalButtonText, { color: '#ffffff' }]}>
+      Сохранить
+    </Text>
+  </TouchableOpacity>
+</View>
         </View>
       </View>
     </Modal>
@@ -1146,7 +1147,7 @@ weightPickerContainer: {
    flexDirection: 'row',
    alignItems: 'center',
    justifyContent: 'center',
-   marginBottom: SPACING.lg,
+   marginBottom: SPACING.md,
    padding: SPACING.md,
    borderRadius: BORDER_RADIUS.md,
  },
@@ -1159,6 +1160,21 @@ weightPickerContainer: {
  weightSliderTitle: {
    ...TYPOGRAPHY.h4,
    fontWeight: '600',
+ },
+ weightCurrentContainer: {
+   alignSelf: 'center',
+   paddingHorizontal: SPACING.sm,
+   paddingVertical: SPACING.sm,
+   borderRadius: BORDER_RADIUS.lg,
+   marginBottom: SPACING.sm,
+   minWidth: 150,
+   alignItems: 'center',
+ },
+
+ weightCurrentValue: {
+   fontSize: 20,
+   fontWeight: 'bold',
+   textAlign: 'center',
  },
   });
 
