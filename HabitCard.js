@@ -242,85 +242,20 @@ displayValue = `${currentValue} / ${targetValue} ${unitLabel}`;
     setShowActions(!showActions);
   };
 
-  // Рендер модального окна для ввода обычных значений
-  const renderValueModal = () => (
-    <Modal
-      visible={showValueInput}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setShowValueInput(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={[styles.valueModal, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.modalTitle, { color: colors.text }]}>
-            {habit.name}
-          </Text>
-
-          <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
-            Цель: {targetValue} {habit.unit && MEASUREMENT_UNITS[habit.unit] ? MEASUREMENT_UNITS[habit.unit].shortLabel : 'раз'}
-          </Text>
-
-          <TextInput
-            style={[styles.valueInput, {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-              color: colors.text
-            }]}
-            value={inputValue}
-            onChangeText={setInputValue}
-            placeholder={`Введите значение (0-${targetValue * 2})`}
-            placeholderTextColor={colors.textSecondary}
-            keyboardType="numeric"
-            autoFocus
-          />
-
-          <View style={styles.quickButtons}>
-            <TouchableOpacity
-              style={[styles.quickButton, { backgroundColor: colors.error }]}
-              onPress={() => {
-                const currentInput = parseInt(inputValue) || 0;
-                const newValue = Math.max(0, currentInput - 1);
-                setInputValue(newValue.toString());
-              }}
-            >
-              <Ionicons name="remove" size={20} color="#ffffff" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.quickButton, { backgroundColor: colors.success }]}
-              onPress={() => {
-                const currentInput = parseInt(inputValue) || 0;
-                const newValue = currentInput + 1;
-                setInputValue(newValue.toString());
-              }}
-            >
-              <Ionicons name="add" size={20} color="#ffffff" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.modalButtons}>
-            <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: colors.surface }]}
-              onPress={() => setShowValueInput(false)}
-            >
-              <Text style={[styles.modalButtonText, { color: colors.textSecondary }]}>
-                Отмена
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: colors.primary }]}
-              onPress={handleValueSubmit}
-            >
-              <Text style={[styles.modalButtonText, { color: '#ffffff' }]}>
-                Сохранить
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
+// Рендер модального окна для ввода обычных значений (оставляем как есть для HabitCard)
+ const renderValueModal = () => renderQuantitativeModal({
+   visible: showValueInput,
+   onRequestClose: () => setShowValueInput(false),
+   habitName: habit.name,
+   targetValue: targetValue,
+   unit: habit.unit,
+   inputValue: inputValue,
+   onInputChange: setInputValue,
+   onSave: handleValueSubmit,
+   onCancel: () => setShowValueInput(false),
+   colors: colors,
+   styles: quantitativeModalStyles
+ });
 
 const renderWeightModal = () => (
     <Modal
@@ -758,8 +693,83 @@ const renderWeightModal = () => (
 };
 
 // === ОРИГИНАЛЬНЫЕ СТИЛИ ===
-const styles = StyleSheet.create({
-container: {
+// === ЭКСПОРТИРУЕМЫЕ СТИЛИ ДЛЯ КОЛИЧЕСТВЕННОГО МОДАЛЬНОГО ОКНА ===
+export const quantitativeModalStyles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg,
+  },
+
+  valueModal: {
+    borderRadius: BORDER_RADIUS.xl,
+    borderWidth: 1,
+    padding: SPACING.lg,
+    width: '100%',
+    maxWidth: 270,
+
+  },
+
+  modalTitle: {
+    ...TYPOGRAPHY.h4,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+  },
+
+  modalSubtitle: {
+    ...TYPOGRAPHY.bodyMedium,
+    textAlign: 'center',
+    marginBottom: SPACING.lg,
+  },
+
+  valueInput: {
+    borderWidth: 1,
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: SPACING.md,
+  },
+
+  quickButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: SPACING.lg,
+  },
+
+  quickButton: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+    minWidth: 30,
+    alignItems: 'center',
+  },
+
+  modalButtons: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+
+  modalButton: {
+    flex: 1,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+    alignItems: 'center',
+  },
+
+  modalButtonText: {
+    ...TYPOGRAPHY.button,
+    fontWeight: '600',
+  },
+});
+
+// === ОРИГИНАЛЬНЫЕ СТИЛИ ===
+const styles = StyleSheet.create({container: {
     borderRadius: BORDER_RADIUS.lg,
     marginBottom: SPACING.md,
     overflow: 'hidden',
@@ -968,14 +978,14 @@ container: {
     fontWeight: '600',
     marginBottom: SPACING.md,
   },
-  
+
   weightInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.md,
   },
-  
+
   weightInput: {
     borderWidth: 1,
     borderRadius: BORDER_RADIUS.md,
@@ -1177,5 +1187,97 @@ weightPickerContainer: {
    textAlign: 'center',
  },
   });
+
+  // === ЭКСПОРТИРУЕМАЯ ФУНКЦИЯ ДЛЯ ПЕРЕИСПОЛЬЗОВАНИЯ ===
+  export const renderQuantitativeModal = ({
+    visible,
+    onRequestClose,
+    habitName,
+    targetValue,
+    unit,
+    inputValue,
+    onInputChange,
+    onSave,
+    onCancel,
+    colors,
+    styles
+  }) => (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onRequestClose}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.valueModal, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>
+            {habitName}
+          </Text>
+
+          <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+            Цель: {targetValue} {unit && MEASUREMENT_UNITS[unit] ? MEASUREMENT_UNITS[unit].shortLabel : 'раз'}
+          </Text>
+
+          <TextInput
+            style={[styles.valueInput, {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              color: colors.text
+            }]}
+            value={inputValue}
+            onChangeText={onInputChange}
+            placeholder={`Введите значение (0-${targetValue * 2})`}
+            placeholderTextColor={colors.textSecondary}
+            keyboardType="numeric"
+            autoFocus
+          />
+
+          <View style={styles.quickButtons}>
+            <TouchableOpacity
+              style={[styles.quickButton, { backgroundColor: colors.error }]}
+              onPress={() => {
+                const currentInput = parseInt(inputValue) || 0;
+                const newValue = Math.max(0, currentInput - 1);
+                onInputChange(newValue.toString());
+              }}
+            >
+              <Ionicons name="remove" size={20} color="#ffffff" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.quickButton, { backgroundColor: colors.success }]}
+              onPress={() => {
+                const currentInput = parseInt(inputValue) || 0;
+                const newValue = currentInput + 1;
+                onInputChange(newValue.toString());
+              }}
+            >
+              <Ionicons name="add" size={20} color="#ffffff" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.modalButtons}>
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: colors.surface }]}
+              onPress={onCancel}
+            >
+              <Text style={[styles.modalButtonText, { color: colors.textSecondary }]}>
+                Отмена
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: colors.primary }]}
+              onPress={onSave}
+            >
+              <Text style={[styles.modalButtonText, { color: '#ffffff' }]}>
+                Сохранить
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
 
   export default HabitCard;

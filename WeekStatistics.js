@@ -21,9 +21,10 @@ import {
   THEMES, 
   SPACING, 
   BORDER_RADIUS, 
-  TYPOGRAPHY
+  TYPOGRAPHY,
+  MEASUREMENT_UNITS
 } from './constants';
-import { 
+import { renderQuantitativeModal, quantitativeModalStyles } from './HabitCard';import {
   dateUtils, 
   statsUtils
 } from './utils';
@@ -57,6 +58,7 @@ const WeekStatistics = ({
   const [editingCell, setEditingCell] = useState(null);
   const [editValue, setEditValue] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showQuantitativeModal, setShowQuantitativeModal] = useState(false);
 
   // === ДНИ НЕДЕЛИ ===
   const weekDayNames = useMemo(() => ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'], []);
@@ -244,73 +246,98 @@ isToday: dateUtils.formatDateLocal(date) === dateUtils.formatDateLocal(today)
     };
   }, [statisticsData, allHabits]);
 
-  // === ФУНКЦИИ ДЛЯ РЕДАКТИРОВАНИЯ ===
-  const handleCellPress = useCallback((habitStat, date, dayData) => {
-    setEditingCell({
-      habitId: habitStat.id,
-      habitName: habitStat.name,
-      habitType: habitStat.type,
-      habitUnit: habitStat.unit,
-      habitTargetValue: habitStat.targetValue,
-      habitTargetWeight: habitStat.targetWeight,
-      date: date,
-      currentValue: dayData?.value || null,
-      currentStatus: dayData?.status || 'empty'
-    });
-    
-    if (habitStat.type === 'boolean') {
-      setEditValue(dayData?.status === 'completed' ? 'true' : 'false');
-    } else if (habitStat.type === 'weight') {
-      setEditValue(dayData?.value || habitStat.targetWeight?.toString() || '70');
-    } else if (habitStat.type === 'number') {
-      setEditValue(dayData?.value?.toString() || habitStat.targetValue?.toString() || '1');
-    }
-    
-    setShowEditModal(true);
-  }, []);
+const handleCellPress = useCallback((habitStat, date, dayData) => {
+  setEditingCell({
+    habitId: habitStat.id,
+    habitName: habitStat.name,
+    habitType: habitStat.type,
+    habitUnit: habitStat.unit,
+    habitTargetValue: habitStat.targetValue,
+    habitTargetWeight: habitStat.targetWeight,
+    date: date,
+    currentValue: dayData?.value || null,
+    currentStatus: dayData?.status || 'empty'
+  });
 
-  const handleSaveEdit = useCallback(async () => {
-    if (!editingCell) return;
-    
-    try {
-      const { habitId, habitType, date } = editingCell;
-      
-      if (habitType === 'boolean') {
-        onHabitToggle(habitId, date);
-      } else if (habitType === 'weight') {
-        const weight = parseFloat(editValue);
-        if (isNaN(weight) || weight <= 0) {
-          Alert.alert('Ошибка', 'Введите корректный вес');
-          return;
-        }
-        
-        const weightData = {
-          weight: weight,
-          timestamp: new Date().toISOString(),
-          targetWeight: editingCell.habitTargetWeight,
-          recorded: true
-        };
-        
-        onHabitUpdateValue(habitId, date, weightData);
-      } else if (habitType === 'number') {
-        const value = parseInt(editValue);
-        if (isNaN(value) || value < 0) {
-          Alert.alert('Ошибка', 'Введите корректное значение');
-          return;
-        }
-        
-        onHabitUpdateValue(habitId, date, value);
+  if (habitStat.type === 'boolean') {
+    setEditValue(dayData?.status === 'completed' ? 'true' : 'false');
+    setShowEditModal(true);
+  } else if (habitStat.type === 'weight') {
+    setEditValue(dayData?.value || habitStat.targetWeight?.toString() || '70');
+    setShowEditModal(true);
+  } else if (habitStat.type === 'number') {
+    // Для количественных привычек используем новое модальное окно
+    setEditValue(dayData?.value?.toString() || habitStat.targetValue?.toString() || '1');
+    setShowQuantitativeModal(true);
+  }
+}, []);
+
+const handleSaveEdit = useCallback(async () => {
+  if (!editingCell) return;
+
+  try {
+    const { habitId, habitType, date } = editingCell;
+
+    if (habitType === 'boolean') {
+      onHabitToggle(habitId, date);
+    } else if (habitType === 'weight') {
+      const weight = parseFloat(editValue);
+      if (isNaN(weight) || weight <= 0) {
+        Alert.alert('Ошибка', 'Введите корректный вес');
+        return;
       }
-      
-      setShowEditModal(false);
-      setEditingCell(null);
-      setEditValue('');
-      
-    } catch (error) {
-      console.error('Ошибка сохранения:', error);
-      Alert.alert('Ошибка', 'Не удалось сохранить изменения');
+
+      const weightData = {
+        weight: weight,
+        timestamp: new Date().toISOString(),
+        targetWeight: editingCell.habitTargetWeight,
+        recorded: true
+      };
+
+      onHabitUpdateValue(habitId, date, weightData);
     }
-  }, [editingCell, editValue, onHabitToggle, onHabitUpdateValue]);
+    // Количественные привычки теперь обрабатываются в handleQuantitativeSave
+
+    setShowEditModal(false);
+    setEditingCell(null);
+    setEditValue('');
+
+  } catch (error) {
+    console.error('Ошибка сохранения:', error);
+    Alert.alert('Ошибка', 'Не удалось сохранить изменения');
+  }
+}, [editingCell, editValue, onHabitToggle, onHabitUpdateValue]);
+
+// === НОВАЯ ФУНКЦИЯ ДЛЯ КОЛИЧЕСТВЕННЫХ ПРИВЫЧЕК ===
+const handleQuantitativeSave = useCallback(async () => {
+  if (!editingCell) return;
+
+  try {
+    const { habitId, date } = editingCell;
+    const value = parseInt(editValue);
+
+    if (isNaN(value) || value < 0) {
+      Alert.alert('Ошибка', 'Введите корректное значение');
+      return;
+    }
+
+    onHabitUpdateValue(habitId, date, value);
+
+    setShowQuantitativeModal(false);
+    setEditingCell(null);
+    setEditValue('');
+
+  } catch (error) {
+    console.error('Ошибка сохранения количественной привычки:', error);
+    Alert.alert('Ошибка', 'Не удалось сохранить изменения');
+  }
+}, [editingCell, editValue, onHabitUpdateValue]);
+
+const handleQuantitativeCancel = useCallback(() => {
+  setShowQuantitativeModal(false);
+  setEditingCell(null);
+  setEditValue('');
+}, []);
 
   const handleCancelEdit = useCallback(() => {
     setShowEditModal(false);
@@ -412,7 +439,9 @@ isToday: dateUtils.formatDateLocal(date) === dateUtils.formatDateLocal(today)
       return '26';                                       // 15% - перевыполнение (>100%)
     })(),
   }
-]}>                <View style={[styles.fixedHabitColumn, { width: HABIT_WIDTH }]}>
+]}>
+
+               <View style={[styles.fixedHabitColumn, { width: HABIT_WIDTH }]}>
                   <View style={styles.improvedHabitInfo}>
                     {/* КОНТЕЙНЕР С ИКОНКОЙ И BADGE */}
                     <View style={styles.iconContainer}>
@@ -704,34 +733,9 @@ isToday: dateUtils.formatDateLocal(date) === dateUtils.formatDateLocal(today)
                     Цель: {editingCell.habitTargetWeight || 70} кг
                   </Text>
                 </View>
-              ) : (
-                <View style={styles.editNumberContainer}>
-                  <Text style={[styles.editInputLabel, { color: colors.text }]}>
-                    Количество {editingCell.habitUnit ? `(${editingCell.habitUnit})` : ''}:
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.editNumberInput,
-                      {
-                        backgroundColor: colors.surface,
-                        borderColor: colors.border,
-                        color: colors.text
-                      }
-                    ]}
-                    value={editValue}
-                    onChangeText={setEditValue}
-                    placeholder={editingCell.habitTargetValue?.toString() || '1'}
-                    placeholderTextColor={colors.textSecondary}
-                    keyboardType="numeric"
-                    autoFocus
-                  />
-                  <Text style={[styles.editInputHelper, { color: colors.textSecondary }]}>
-                    Цель: {editingCell.habitTargetValue || 1} {editingCell.habitUnit || 'раз'}
-                  </Text>
-                </View>
-              )}
-            </>
-          )}
+              ) : null}
+                   </>
+                        )}
           
           <View style={styles.editModalButtons}>
             <TouchableOpacity
@@ -763,6 +767,21 @@ isToday: dateUtils.formatDateLocal(date) === dateUtils.formatDateLocal(today)
       {renderSummaryCards()}
       {renderWeekView()}
       {renderEditModal()}
+
+{/* Новое красивое модальное окно для количественных привычек */}
+{editingCell && editingCell.habitType === 'number' && renderQuantitativeModal({
+  visible: showQuantitativeModal,
+  onRequestClose: handleQuantitativeCancel,
+  habitName: editingCell.habitName,
+  targetValue: editingCell.habitTargetValue || 1,
+  unit: editingCell.habitUnit,
+  inputValue: editValue,
+  onInputChange: setEditValue,
+  onSave: handleQuantitativeSave,
+  onCancel: handleQuantitativeCancel,
+  colors: colors,
+  styles: quantitativeModalStyles
+})}
     </View>
   );
 };
@@ -1151,10 +1170,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  centerContent: {
-  alignItems: 'center',
-  justifyContent: 'center',
-},
-});
+ centerContent: {
+     alignItems: 'center',
+     justifyContent: 'center',
+   },
+ });
 
-export default WeekStatistics;
+
+ export default WeekStatistics;
