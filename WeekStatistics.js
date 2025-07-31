@@ -3,7 +3,7 @@
 // WeekStatistics.js - НЕДЕЛЯ
 // ====================================
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -24,7 +24,8 @@ import {
   TYPOGRAPHY,
   MEASUREMENT_UNITS
 } from './constants';
-import { renderQuantitativeModal, quantitativeModalStyles } from './HabitCard';import {
+import { renderQuantitativeModal, quantitativeModalStyles, renderWeightModalComponent, weightModalStyles } from './HabitCard';
+import {
   dateUtils, 
   statsUtils
 } from './utils';
@@ -59,6 +60,9 @@ const WeekStatistics = ({
   const [editValue, setEditValue] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showQuantitativeModal, setShowQuantitativeModal] = useState(false);
+  const [showWeightModal, setShowWeightModal] = useState(false);
+  const weightIntegerScrollRef = useRef(null);
+  const weightDecimalScrollRef = useRef(null);
 
   // === ДНИ НЕДЕЛИ ===
   const weekDayNames = useMemo(() => ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'], []);
@@ -263,8 +267,10 @@ const handleCellPress = useCallback((habitStat, date, dayData) => {
     setEditValue(dayData?.status === 'completed' ? 'true' : 'false');
     setShowEditModal(true);
   } else if (habitStat.type === 'weight') {
-    setEditValue(dayData?.value || habitStat.targetWeight?.toString() || '70');
-    setShowEditModal(true);
+    // Для весовых привычек используем красивое модальное окно
+    const initialWeight = dayData?.value || habitStat.targetWeight || 70;
+    setEditValue(initialWeight.toString());
+    setShowWeightModal(true);
   } else if (habitStat.type === 'number') {
     // Для количественных привычек используем новое модальное окно
     setEditValue(dayData?.value?.toString() || habitStat.targetValue?.toString() || '1');
@@ -280,21 +286,7 @@ const handleSaveEdit = useCallback(async () => {
 
     if (habitType === 'boolean') {
       onHabitToggle(habitId, date);
-    } else if (habitType === 'weight') {
-      const weight = parseFloat(editValue);
-      if (isNaN(weight) || weight <= 0) {
-        Alert.alert('Ошибка', 'Введите корректный вес');
-        return;
-      }
-
-      const weightData = {
-        weight: weight,
-        timestamp: new Date().toISOString(),
-        targetWeight: editingCell.habitTargetWeight,
-        recorded: true
-      };
-
-      onHabitUpdateValue(habitId, date, weightData);
+    // Весовые привычки теперь обрабатываются в handleWeightSave
     }
     // Количественные привычки теперь обрабатываются в handleQuantitativeSave
 
@@ -335,6 +327,44 @@ const handleQuantitativeSave = useCallback(async () => {
 
 const handleQuantitativeCancel = useCallback(() => {
   setShowQuantitativeModal(false);
+  setEditingCell(null);
+  setEditValue('');
+}, []);
+
+// === НОВЫЕ ФУНКЦИИ ДЛЯ ВЕСОВЫХ ПРИВЫЧЕК ===
+const handleWeightSave = useCallback(async () => {
+  if (!editingCell) return;
+
+  try {
+    const { habitId, date } = editingCell;
+    const weight = parseFloat(editValue);
+
+    if (isNaN(weight) || weight <= 0) {
+      Alert.alert('Ошибка', 'Введите корректный вес');
+      return;
+    }
+
+    const weightData = {
+      weight: weight,
+      timestamp: new Date().toISOString(),
+      targetWeight: editingCell.habitTargetWeight,
+      recorded: true
+    };
+
+    onHabitUpdateValue(habitId, date, weightData);
+
+    setShowWeightModal(false);
+    setEditingCell(null);
+    setEditValue('');
+
+  } catch (error) {
+    console.error('Ошибка сохранения весовой привычки:', error);
+    Alert.alert('Ошибка', 'Не удалось сохранить изменения');
+  }
+}, [editingCell, editValue, onHabitUpdateValue]);
+
+const handleWeightCancel = useCallback(() => {
+  setShowWeightModal(false);
   setEditingCell(null);
   setEditValue('');
 }, []);
@@ -705,34 +735,6 @@ const handleQuantitativeCancel = useCallback(() => {
                     </Text>
                   </TouchableOpacity>
                 </View>
-              ) : editingCell.habitType === 'weight' ? (
-                <View style={styles.editWeightContainer}>
-                  <Text style={[styles.editInputLabel, { color: colors.text }]}>
-                    Вес (кг):
-                  </Text>
-                  <View style={styles.editWeightInputContainer}>
-                    <TextInput
-                      style={[
-                        styles.editWeightInput,
-                        {
-                          backgroundColor: colors.surface,
-                          borderColor: colors.border,
-                          color: colors.text
-                        }
-                      ]}
-                      value={editValue}
-                      onChangeText={setEditValue}
-                      placeholder={editingCell.habitTargetWeight?.toString() || '70'}
-                      placeholderTextColor={colors.textSecondary}
-                      keyboardType="decimal-pad"
-                      autoFocus
-                    />
-                    <Text style={[styles.editWeightUnit, { color: colors.textSecondary }]}>кг</Text>
-                  </View>
-                  <Text style={[styles.editInputHelper, { color: colors.textSecondary }]}>
-                    Цель: {editingCell.habitTargetWeight || 70} кг
-                  </Text>
-                </View>
               ) : null}
                    </>
                         )}
@@ -781,6 +783,23 @@ const handleQuantitativeCancel = useCallback(() => {
   onCancel: handleQuantitativeCancel,
   colors: colors,
   styles: quantitativeModalStyles
+})}
+
+{/* Новое красивое модальное окно для весовых привычек */}
+{editingCell && editingCell.habitType === 'weight' && renderWeightModalComponent({
+  visible: showWeightModal,
+  onRequestClose: handleWeightCancel,
+  habitName: editingCell.habitName,
+  targetValue: editingCell.habitTargetWeight || 70,
+  currentValue: parseFloat(editValue) || 0,
+  weightValue: editValue,
+  onWeightChange: setEditValue,
+  onSave: handleWeightSave,
+  onCancel: handleWeightCancel,
+  colors: colors,
+  styles: weightModalStyles,
+  weightIntegerScrollRef: weightIntegerScrollRef,
+  weightDecimalScrollRef: weightDecimalScrollRef
 })}
     </View>
   );
