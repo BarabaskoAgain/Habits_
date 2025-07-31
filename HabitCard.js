@@ -417,7 +417,7 @@ const renderWeightModal = () => renderWeightModalComponent({
                     const decimal = (parseFloat(weightValue) % 1).toFixed(1).split('.')[1];
                     const currentDecimal = parseInt(decimal) || 0;
                     const isCenter = currentDecimal === i;
-
+//FIX
                     return (
                       <View
                         key={i}
