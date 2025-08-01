@@ -23,7 +23,16 @@ import {
   TYPOGRAPHY,
   MEASUREMENT_UNITS
 } from './constants';
-import { renderQuantitativeModal, quantitativeModalStyles, renderWeightModalComponent, weightModalStyles } from './HabitCard';
+
+import { renderQuantitativeModal,
+quantitativeModalStyles,
+renderWeightModalComponent,
+weightModalStyles,
+renderBooleanModalComponent,
+ booleanModalStyles
+ } from './HabitCard';
+
+
 import {
   dateUtils, 
   statsUtils
@@ -60,6 +69,8 @@ const WeekStatistics = ({
   const [showEditModal, setShowEditModal] = useState(false);
   const [showQuantitativeModal, setShowQuantitativeModal] = useState(false);
   const [showWeightModal, setShowWeightModal] = useState(false);
+  const [showBooleanModal, setShowBooleanModal] = useState(false);
+  const [booleanValue, setBooleanValue] = useState(false);
   const weightIntegerScrollRef = useRef(null);
   const weightDecimalScrollRef = useRef(null);
 
@@ -294,8 +305,10 @@ const handleCellPress = useCallback((habitStat, date, dayData) => {
   });
 
   if (habitStat.type === 'boolean') {
-    setEditValue(dayData?.status === 'completed' ? 'true' : 'false');
-    setShowEditModal(true);
+    // Для булевых привычек используем красивое модальное окно
+    const isCompleted = dayData?.status === 'completed';
+    setBooleanValue(isCompleted);
+    setShowBooleanModal(true);
   } else if (habitStat.type === 'weight') {
     // Для весовых привычек используем красивое модальное окно
     const initialWeight = dayData?.value || habitStat.targetWeight || 70;
@@ -308,27 +321,7 @@ const handleCellPress = useCallback((habitStat, date, dayData) => {
   }
 }, []);
 
-const handleSaveEdit = useCallback(async () => {
-  if (!editingCell) return;
-
-  try {
-    const { habitId, habitType, date } = editingCell;
-
-    if (habitType === 'boolean') {
-      onHabitToggle(habitId, date);
-    // Весовые привычки теперь обрабатываются в handleWeightSave
-    }
-    // Количественные привычки теперь обрабатываются в handleQuantitativeSave
-
-    setShowEditModal(false);
-    setEditingCell(null);
-    setEditValue('');
-
-  } catch (error) {
-    console.error('Ошибка сохранения:', error);
-    Alert.alert('Ошибка', 'Не удалось сохранить изменения');
-  }
-}, [editingCell, editValue, onHabitToggle, onHabitUpdateValue]);
+// Функция handleSaveEdit удалена - все типы привычек используют специальные модальные окна
 
 // === НОВАЯ ФУНКЦИЯ ДЛЯ КОЛИЧЕСТВЕННЫХ ПРИВЫЧЕК ===
 const handleQuantitativeSave = useCallback(async () => {
@@ -397,6 +390,34 @@ const handleWeightCancel = useCallback(() => {
   setShowWeightModal(false);
   setEditingCell(null);
   setEditValue('');
+}, []);
+
+// === НОВЫЕ ФУНКЦИИ ДЛЯ БУЛЕВЫХ ПРИВЫЧЕК ===
+const handleBooleanSave = useCallback(async () => {
+  if (!editingCell) return;
+
+  try {
+    const { habitId, date } = editingCell;
+    onHabitToggle(habitId, date);
+
+    setShowBooleanModal(false);
+    setEditingCell(null);
+    setBooleanValue(false);
+
+  } catch (error) {
+    console.error('Ошибка сохранения булевой привычки:', error);
+    Alert.alert('Ошибка', 'Не удалось сохранить изменения');
+  }
+}, [editingCell, onHabitToggle]);
+
+const handleBooleanCancel = useCallback(() => {
+  setShowBooleanModal(false);
+  setEditingCell(null);
+  setBooleanValue(false);
+}, []);
+
+const handleBooleanToggle = useCallback((value) => {
+  setBooleanValue(value);
 }, []);
 
   const handleCancelEdit = useCallback(() => {
@@ -717,54 +738,6 @@ const handleWeightCancel = useCallback(() => {
                 })}
               </Text>
               
-              {editingCell.habitType === 'boolean' ? (
-                <View style={styles.editBooleanContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.editBooleanButton,
-                      {
-                        backgroundColor: editValue === 'true' ? colors.success : colors.surface,
-                        borderColor: editValue === 'true' ? colors.success : colors.border
-                      }
-                    ]}
-                    onPress={() => setEditValue('true')}
-                  >
-                    <Ionicons 
-                      name="checkmark-circle" 
-                      size={20} 
-                      color={editValue === 'true' ? '#ffffff' : colors.textSecondary} 
-                    />
-                    <Text style={[
-                      styles.editBooleanText,
-                      { color: editValue === 'true' ? '#ffffff' : colors.text }
-                    ]}>
-                      Выполнено
-                    </Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={[
-                      styles.editBooleanButton,
-                      {
-                        backgroundColor: editValue === 'false' ? colors.error : colors.surface,
-                        borderColor: editValue === 'false' ? colors.error : colors.border
-                      }
-                    ]}
-                    onPress={() => setEditValue('false')}
-                  >
-                    <Ionicons 
-                      name="close-circle" 
-                      size={20} 
-                      color={editValue === 'false' ? '#ffffff' : colors.textSecondary} 
-                    />
-                    <Text style={[
-                      styles.editBooleanText,
-                      { color: editValue === 'false' ? '#ffffff' : colors.text }
-                    ]}>
-                      Не выполнено
-                    </Text>
-                  </TouchableOpacity>
-                </View>
               ) : null}
                    </>
                         )}
@@ -781,10 +754,10 @@ const handleWeightCancel = useCallback(() => {
             
             <TouchableOpacity
               style={[styles.editModalButton, { backgroundColor: colors.primary }]}
-              onPress={handleSaveEdit}
+              onPress={handleCancelEdit}
             >
               <Text style={[styles.editModalButtonText, { color: '#ffffff' }]}>
-                Сохранить
+                Закрыть
               </Text>
             </TouchableOpacity>
           </View>
@@ -830,6 +803,19 @@ const handleWeightCancel = useCallback(() => {
   styles: weightModalStyles,
   weightIntegerScrollRef: weightIntegerScrollRef,
   weightDecimalScrollRef: weightDecimalScrollRef
+})}
+
+{/* Новое красивое модальное окно для булевых привычек */}
+{editingCell && editingCell.habitType === 'boolean' && renderBooleanModalComponent({
+  visible: showBooleanModal,
+  onRequestClose: handleBooleanCancel,
+  habitName: editingCell.habitName,
+  isCompleted: booleanValue,
+  onToggleCompleted: handleBooleanToggle,
+  onSave: handleBooleanSave,
+  onCancel: handleBooleanCancel,
+  colors: colors,
+  styles: booleanModalStyles
 })}
     </View>
   );

@@ -1643,4 +1643,227 @@ export const renderWeightModalComponent = ({
   </Modal>
 );
 
+// === ЭКСПОРТИРУЕМЫЕ СТИЛИ ДЛЯ БУЛЕВОГО МОДАЛЬНОГО ОКНА ===
+export const booleanModalStyles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg,
+  },
+
+  booleanModal: {
+    borderRadius: BORDER_RADIUS.xl,
+    borderWidth: 1,
+    padding: SPACING.lg,
+    width: '100%',
+    maxWidth: 320,
+  },
+
+  modalTitle: {
+    ...TYPOGRAPHY.h4,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+  },
+
+  modalSubtitle: {
+    ...TYPOGRAPHY.bodyMedium,
+    textAlign: 'center',
+    marginBottom: SPACING.lg,
+  },
+
+  booleanContainer: {
+    gap: SPACING.md,
+    marginBottom: SPACING.lg,
+  },
+
+  booleanOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 2,
+    gap: SPACING.sm,
+    minHeight: 60,
+  },
+
+  booleanIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  booleanContent: {
+    flex: 1,
+  },
+
+  booleanTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+
+  booleanDescription: {
+    fontSize: 13,
+    opacity: 0.8,
+  },
+
+  modalButtons: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+
+  modalButton: {
+    flex: 1,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    alignItems: 'center',
+  },
+
+  modalButtonText: {
+    ...TYPOGRAPHY.button,
+    fontWeight: '600',
+  },
+});
+
+// === ЭКСПОРТИРУЕМАЯ ФУНКЦИЯ БУЛЕВОГО МОДАЛЬНОГО ОКНА ===
+export const renderBooleanModalComponent = ({
+  visible,
+  onRequestClose,
+  habitName,
+  isCompleted,
+  onToggleCompleted,
+  onSave,
+  onCancel,
+  colors,
+  styles
+}) => (
+  <Modal
+    visible={visible}
+    transparent
+    animationType="fade"
+    onRequestClose={onRequestClose}
+  >
+    <View style={styles.modalOverlay}>
+      <View style={[styles.booleanModal, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.modalTitle, { color: colors.text }]}>
+          {habitName}
+        </Text>
+
+        <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+          Отметьте выполнение привычки
+        </Text>
+
+        <View style={styles.booleanContainer}>
+          {/* ВАРИАНТ "ВЫПОЛНЕНО" */}
+          <TouchableOpacity
+            style={[
+              styles.booleanOption,
+              {
+                backgroundColor: isCompleted ? colors.success + '15' : colors.surface,
+                borderColor: isCompleted ? colors.success : colors.border,
+              }
+            ]}
+            onPress={() => onToggleCompleted(true)}
+            activeOpacity={0.7}
+          >
+            <View style={[
+              styles.booleanIcon,
+              { backgroundColor: isCompleted ? colors.success : colors.surface }
+            ]}>
+              <Ionicons
+                name="checkmark-circle"
+                size={20}
+                color={isCompleted ? '#ffffff' : colors.textSecondary}
+              />
+            </View>
+            <View style={styles.booleanContent}>
+              <Text style={[
+                styles.booleanTitle,
+                { color: isCompleted ? colors.success : colors.text }
+              ]}>
+                Выполнено
+              </Text>
+              <Text style={[
+                styles.booleanDescription,
+                { color: isCompleted ? colors.success : colors.textSecondary }
+              ]}>
+                Привычка успешно выполнена сегодня
+              </Text>
+            </View>
+            {isCompleted && (
+              <Ionicons name="checkmark" size={24} color={colors.success} />
+            )}
+          </TouchableOpacity>
+
+          {/* ВАРИАНТ "НЕ ВЫПОЛНЕНО" */}
+          <TouchableOpacity
+            style={[
+              styles.booleanOption,
+              {
+                backgroundColor: !isCompleted ? colors.error + '15' : colors.surface,
+                borderColor: !isCompleted ? colors.error : colors.border,
+              }
+            ]}
+            onPress={() => onToggleCompleted(false)}
+            activeOpacity={0.7}
+          >
+            <View style={[
+              styles.booleanIcon,
+              { backgroundColor: !isCompleted ? colors.error : colors.surface }
+            ]}>
+              <Ionicons
+                name="close-circle"
+                size={20}
+                color={!isCompleted ? '#ffffff' : colors.textSecondary}
+              />
+            </View>
+            <View style={styles.booleanContent}>
+              <Text style={[
+                styles.booleanTitle,
+                { color: !isCompleted ? colors.error : colors.text }
+              ]}>
+                Не выполнено
+              </Text>
+              <Text style={[
+                styles.booleanDescription,
+                { color: !isCompleted ? colors.error : colors.textSecondary }
+              ]}>
+                Привычка пока не выполнена
+              </Text>
+            </View>
+            {!isCompleted && (
+              <Ionicons name="checkmark" size={24} color={colors.error} />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.modalButtons}>
+          <TouchableOpacity
+            style={[styles.modalButton, { backgroundColor: colors.surface }]}
+            onPress={onCancel}
+          >
+            <Text style={[styles.modalButtonText, { color: colors.textSecondary }]}>
+              Отмена
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.modalButton, { backgroundColor: colors.primary }]}
+            onPress={onSave}
+          >
+            <Text style={[styles.modalButtonText, { color: '#ffffff' }]}>
+              Сохранить
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  </Modal>
+);
+
 export default HabitCard;
