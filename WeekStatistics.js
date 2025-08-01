@@ -420,6 +420,38 @@ const handleBooleanToggle = useCallback((value) => {
   setBooleanValue(value);
 }, []);
 
+// === ФУНКЦИИ УДАЛЕНИЯ ДЛЯ ВСЕХ ТИПОВ ПРИВЫЧЕК ===
+const handleDeleteValue = useCallback(async () => {
+  if (!editingCell) return;
+
+  try {
+    const { habitId, date, habitType } = editingCell;
+
+    if (habitType === 'boolean') {
+      // Для булевых привычек используем toggle для сброса
+      onHabitToggle(habitId, date);
+    } else if (habitType === 'weight') {
+      // Для весовых привычек передаем undefined для удаления записи
+      onHabitUpdateValue(habitId, date, undefined);
+    } else if (habitType === 'number') {
+      // Для количественных привычек передаем 0 или удаляем запись
+      onHabitUpdateValue(habitId, date, 0);
+    }
+
+    // Закрываем все модальные окна
+    setShowQuantitativeModal(false);
+    setShowWeightModal(false);
+    setShowBooleanModal(false);
+    setEditingCell(null);
+    setEditValue('');
+    setBooleanValue(false);
+
+  } catch (error) {
+    console.error('Ошибка удаления значения:', error);
+    Alert.alert('Ошибка', 'Не удалось удалить значение');
+  }
+}, [editingCell, onHabitUpdateValue, onHabitToggle]);
+
   const handleCancelEdit = useCallback(() => {
     setShowEditModal(false);
     setEditingCell(null);
@@ -784,6 +816,7 @@ const handleBooleanToggle = useCallback((value) => {
   onInputChange: setEditValue,
   onSave: handleQuantitativeSave,
   onCancel: handleQuantitativeCancel,
+  onDelete: handleDeleteValue,
   colors: colors,
   styles: quantitativeModalStyles
 })}
@@ -799,6 +832,7 @@ const handleBooleanToggle = useCallback((value) => {
   onWeightChange: setEditValue,
   onSave: handleWeightSave,
   onCancel: handleWeightCancel,
+  onDelete: handleDeleteValue,
   colors: colors,
   styles: weightModalStyles,
   weightIntegerScrollRef: weightIntegerScrollRef,
@@ -814,6 +848,7 @@ const handleBooleanToggle = useCallback((value) => {
   onToggleCompleted: handleBooleanToggle,
   onSave: handleBooleanSave,
   onCancel: handleBooleanCancel,
+  onDelete: handleDeleteValue,
   colors: colors,
   styles: booleanModalStyles
 })}

@@ -759,13 +759,21 @@ export const quantitativeModalStyles = StyleSheet.create({
 
   modalButtons: {
     flexDirection: 'row',
-    gap: SPACING.sm,
+    gap: SPACING.xs,
   },
 
   modalButton: {
     flex: 1,
     paddingVertical: SPACING.sm,
     borderRadius: BORDER_RADIUS.md,
+    alignItems: 'center',
+  },
+
+  deleteButton: {
+    width: 44,
+    height: 44,
+    borderRadius: BORDER_RADIUS.md,
+    justifyContent: 'center',
     alignItems: 'center',
   },
 
@@ -1206,6 +1214,7 @@ weightPickerContainer: {
     onInputChange,
     onSave,
     onCancel,
+    onDelete,
     colors,
     styles
   }) => (
@@ -1264,6 +1273,13 @@ weightPickerContainer: {
           </View>
 
           <View style={styles.modalButtons}>
+            <TouchableOpacity
+              style={[styles.deleteButton, { backgroundColor: colors.error }]}
+              onPress={onDelete}
+            >
+              <Ionicons name="trash" size={18} color="#ffffff" />
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={[styles.modalButton, { backgroundColor: colors.surface }]}
               onPress={onCancel}
@@ -1405,13 +1421,21 @@ export const weightModalStyles = StyleSheet.create({
 
   modalButtons: {
     flexDirection: 'row',
-    gap: SPACING.sm,
+    gap: SPACING.xs,
   },
 
   modalButton: {
     flex: 1,
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    alignItems: 'center',
+  },
+
+  deleteButton: {
+    width: 44,
+    height: 44,
     borderRadius: BORDER_RADIUS.md,
+    justifyContent: 'center',
     alignItems: 'center',
   },
 
@@ -1432,6 +1456,7 @@ export const renderWeightModalComponent = ({
   onWeightChange,
   onSave,
   onCancel,
+  onDelete,
   colors,
   styles,
   weightIntegerScrollRef,
@@ -1621,6 +1646,13 @@ export const renderWeightModalComponent = ({
 
         <View style={styles.modalButtons}>
           <TouchableOpacity
+            style={[styles.deleteButton, { backgroundColor: colors.error }]}
+            onPress={onDelete}
+          >
+            <Ionicons name="trash" size={18} color="#ffffff" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={[styles.modalButton, { backgroundColor: colors.surface }]}
             onPress={onCancel}
           >
@@ -1714,13 +1746,21 @@ export const booleanModalStyles = StyleSheet.create({
 
   modalButtons: {
     flexDirection: 'row',
-    gap: SPACING.sm,
+    gap: SPACING.xs,
   },
 
   modalButton: {
     flex: 1,
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.lg,
+    alignItems: 'center',
+  },
+
+  deleteButton: {
+    width: 44,
+    height: 44,
+    borderRadius: BORDER_RADIUS.md,
+    justifyContent: 'center',
     alignItems: 'center',
   },
 
@@ -1739,6 +1779,7 @@ export const renderBooleanModalComponent = ({
   onToggleCompleted,
   onSave,
   onCancel,
+  onDelete,
   colors,
   styles
 }) => (
@@ -1843,6 +1884,13 @@ export const renderBooleanModalComponent = ({
         </View>
 
         <View style={styles.modalButtons}>
+          <TouchableOpacity
+            style={[styles.deleteButton, { backgroundColor: colors.error }]}
+            onPress={onDelete}
+          >
+            <Ionicons name="trash" size={18} color="#ffffff" />
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.modalButton, { backgroundColor: colors.surface }]}
             onPress={onCancel}
