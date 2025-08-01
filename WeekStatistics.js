@@ -3,8 +3,7 @@
 // WeekStatistics.js - НЕДЕЛЯ
 // ====================================
 
-import React, { useState, useMemo, useCallback, useRef } from 'react';
-import {
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';import {
   View,
   Text,
   TouchableOpacity,
@@ -63,6 +62,37 @@ const WeekStatistics = ({
   const [showWeightModal, setShowWeightModal] = useState(false);
   const weightIntegerScrollRef = useRef(null);
   const weightDecimalScrollRef = useRef(null);
+
+  // === ЭФФЕКТ ДЛЯ ПОЗИЦИОНИРОВАНИЯ ВЕСОВОГО МОДАЛЬНОГО ОКНА ===
+  useEffect(() => {
+    if (showWeightModal && editValue && weightIntegerScrollRef.current && weightDecimalScrollRef.current) {
+      // Небольшая задержка для корректного рендеринга
+      setTimeout(() => {
+        const weight = parseFloat(editValue) || 70;
+        const integerPart = Math.floor(weight);
+        const decimalPart = Math.round((weight - integerPart) * 10);
+
+        // Вычисляем индексы и позиции
+        const integerIndex = Math.max(0, Math.min(165, integerPart - 35)); // 35-200
+        const decimalIndex = Math.max(0, Math.min(9, decimalPart)); // 0-9
+
+        // Позиционируем ScrollView (каждый элемент 40px высотой)
+        const integerPosition = integerIndex * 40;
+        const decimalPosition = decimalIndex * 40;
+
+        // Устанавливаем позиции
+        weightIntegerScrollRef.current?.scrollTo({
+          y: integerPosition,
+          animated: false
+        });
+
+        weightDecimalScrollRef.current?.scrollTo({
+          y: decimalPosition,
+          animated: false
+        });
+      }, 100);
+    }
+  }, [showWeightModal, editValue]);
 
   // === ДНИ НЕДЕЛИ ===
   const weekDayNames = useMemo(() => ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'], []);
