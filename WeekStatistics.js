@@ -3,7 +3,8 @@
 // WeekStatistics.js - НЕДЕЛЯ
 // ====================================
 
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';import {
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import {
   View,
   Text,
   TouchableOpacity,
@@ -12,7 +13,8 @@ import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
   Dimensions,
   Modal,
   TextInput,
-  Alert
+  Alert,
+  PanResponder
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -42,6 +44,8 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const WeekStatistics = ({
   habitsData = { activeHabits: [], archivedHabits: [] },
+  weekNavigationMode = false,
+  onWeekNavigationExit = () => {},
   onHabitToggle = () => {},
   onHabitUpdateValue = () => {},
   theme = 'blue',
@@ -63,6 +67,9 @@ const WeekStatistics = ({
   const { activeHabits, archivedHabits } = habitsData;
   const allHabits = [...activeHabits, ...archivedHabits];
   
+  // === СОСТОЯНИЕ ДЛЯ НАВИГАЦИИ ПО НЕДЕЛЯМ ===
+  const [selectedWeekOffset, setSelectedWeekOffset] = useState(0); // 0 = текущая неделя, -1 = прошлая, +1 = следующая
+
   // === СОСТОЯНИЕ ДЛЯ РЕДАКТИРОВАНИЯ ===
   const [editingCell, setEditingCell] = useState(null);
   const [editValue, setEditValue] = useState('');
@@ -73,6 +80,18 @@ const WeekStatistics = ({
   const [booleanValue, setBooleanValue] = useState(false);
   const weightIntegerScrollRef = useRef(null);
   const weightDecimalScrollRef = useRef(null);
+
+// === СБРОС К ТЕКУЩЕЙ НЕДЕЛЕ ПРИ ВЫХОДЕ ИЗ РЕЖИМА НАВИГАЦИИ ===
+  useEffect(() => {
+    if (!weekNavigationMode) {
+      setSelectedWeekOffset(0);
+    }
+  }, [weekNavigationMode]);
+
+  // === СБРОС К ТЕКУЩЕЙ НЕДЕЛЕ ПРИ СМЕНЕ ЭКРАНА (ТОЛЬКО ПЕРВЫЙ РАЗ) ===
+  useEffect(() => {
+    setSelectedWeekOffset(0);
+  }, []); // Убираем зависимости - выполняется только при монтировании
 
   // === ЭФФЕКТ ДЛЯ ПОЗИЦИОНИРОВАНИЯ ВЕСОВОГО МОДАЛЬНОГО ОКНА ===
   useEffect(() => {
@@ -91,7 +110,7 @@ const WeekStatistics = ({
         const integerPosition = integerIndex * 40;
         const decimalPosition = decimalIndex * 40;
 
-        // Устанавливаем позиции
+        // Устанавливаем позици
         weightIntegerScrollRef.current?.scrollTo({
           y: integerPosition,
           animated: false
@@ -108,32 +127,103 @@ const WeekStatistics = ({
   // === ДНИ НЕДЕЛИ ===
   const weekDayNames = useMemo(() => ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'], []);
 
-  // === ВЫЧИСЛЕНИЕ ДАННЫХ ДЛЯ НЕДЕЛИ ===
+  // === ФУНКЦИИ НАВИГАЦИИ ПО НЕДЕЛЯМ ===
+  const goToPreviousWeek = useCallback(() => {
+    setSelectedWeekOffset(prev => prev - 1);
+  }, []);
+
+  const goToNextWeek = useCallback(() => {
+    setSelectedWeekOffset(prev => prev + 1);
+  }, []);
+
+  const goToCurrentWeek = useCallback(() => {
+    setSelectedWeekOffset(0);
+  }, []);
+
+  // === СВАЙП-ЖЕСТЫ ===
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        // Активируem жест только для горизонтальных свайпов
+        return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 20;
+      },
+      onPanResponderGrant: () => {
+        // Жест начался
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        // Пользователь двигает пальцем
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        const swipeThreshold = 50;
+
+        if (gestureState.dx > swipeThreshold) {
+          // Свайп вправо = предыдущая неделя
+          goToPreviousWeek();
+        } else if (gestureState.dx < -swipeThreshold) {
+          // Свайп влево = следующая неделя
+          goToNextWeek();
+        }
+      },
+    })
+  ).current;
+
+  // === ПОЛУЧЕНИЕ ДАТ ВЫБРАННОЙ НЕДЕЛИ ===
+  const getSelectedWeekDates = useCallback(() => {
+    // getCurrentWeekStart возвращает строку, преобразуем в Date
+    const currentWeekStartString = dateUtils.getCurrentWeekStart();
+    const currentWeekStart = new Date(currentWeekStartString);
+
+    // Создаем дату для выбранной недели
+    const selectedWeekStart = new Date(currentWeekStart);
+    selectedWeekStart.setDate(currentWeekStart.getDate() + (selectedWeekOffset * 7));
+
+    const startDate = new Date(selectedWeekStart);
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6);
+
+    return { startDate, endDate };
+  }, [selectedWeekOffset]);
+
+  // === ФОРМАТИРОВАНИЕ ЗАГОЛОВКА НЕДЕЛИ ===
+  const getWeekTitle = useCallback(() => {
+    const { startDate, endDate } = getSelectedWeekDates();
+
+    if (selectedWeekOffset === 0) {
+      return "Текущая неделя";
+    } else if (selectedWeekOffset === -1) {
+      return "Прошлая неделя";
+    } else if (selectedWeekOffset === 1) {
+      return "Следующая неделя";
+    } else {
+      const startFormatted = startDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+      const endFormatted = endDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+      return `${startFormatted} - ${endFormatted}`;
+    }
+  }, [selectedWeekOffset, getSelectedWeekDates]);
+
+  // === ВЫЧИСЛЕНИЕ ДАННЫХ ДЛЯ ВЫБРАННОЙ НЕДЕЛИ ===
   const statisticsData = useMemo(() => {
-    if (!allHabits || allHabits.length === 0) return { 
-      dates: [], 
-      activeHabitsStats: [], 
-      archivedHabitsStats: [] 
+    if (!allHabits || allHabits.length === 0) return {
+      dates: [],
+      activeHabitsStats: [],
+      archivedHabitsStats: []
     };
 
     try {
-      const currentWeekStart = dateUtils.getCurrentWeekStart();
-      const startDate = new Date(currentWeekStart);
-      const endDate = new Date(startDate);
-      endDate.setDate(startDate.getDate() + 6);
-      
+      const { startDate, endDate } = getSelectedWeekDates();
+
       const dates = [];
       const today = new Date();
-      
+
       for (let i = 0; i < 7; i++) {
         const date = new Date(startDate);
         date.setDate(startDate.getDate() + i);
         dates.push({
-date: dateUtils.formatDateLocal(date),
-day: date.getDate(),
-weekday: weekDayNames[i],
-fullWeekday: date.toLocaleDateString('ru-RU', { weekday: 'long' }),
-isToday: dateUtils.formatDateLocal(date) === dateUtils.formatDateLocal(today)
+          date: dateUtils.formatDateLocal(date),
+          day: date.getDate(),
+          weekday: weekDayNames[i],
+          fullWeekday: date.toLocaleDateString('ru-RU', { weekday: 'long' }),
+          isToday: dateUtils.formatDateLocal(date) === dateUtils.formatDateLocal(today)
         });
       }
 
@@ -244,7 +334,7 @@ isToday: dateUtils.formatDateLocal(date) === dateUtils.formatDateLocal(today)
       console.error('Ошибка вычисления статистики недели:', error);
       return { dates: [], activeHabitsStats: [], archivedHabitsStats: [] };
     }
-  }, [allHabits, activeHabits, archivedHabits, calculateAverageWeight, calculatePlanFromCreation, weekDayNames]);
+  }, [allHabits, activeHabits, archivedHabits, calculateAverageWeight, calculatePlanFromCreation, weekDayNames, getSelectedWeekDates]);
 
   // === СВОДНАЯ СТАТИСТИКА ===
   const summaryStats = useMemo(() => {
@@ -475,7 +565,7 @@ const handleDeleteValue = useCallback(async () => {
             {summaryStats.totalHabits}
           </Text>
         </View>
-        
+
         <View style={[styles.compactSummaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.compactSummaryLabel, { color: colors.textSecondary }]}>
             Сегодня
@@ -669,7 +759,10 @@ const handleDeleteValue = useCallback(async () => {
     return (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }}>
 
-<View style={[styles.tableContainer, { backgroundColor: colors.card }, styles.centerContent]}>
+<View
+  style={[styles.tableContainer, { backgroundColor: colors.card }, styles.centerContent]}
+  {...panResponder.panHandlers}
+>
   <ScrollView 
     horizontal 
     showsHorizontalScrollIndicator={false}
@@ -801,57 +894,93 @@ const handleDeleteValue = useCallback(async () => {
   // === ОСНОВНОЙ РЕНДЕР ===
   return (
     <View style={styles.container}>
+      {/* ЗАГОЛОВОК НЕДЕЛИ С НАВИГАЦИЕЙ - ПОКАЗЫВАЕМ ТОЛЬКО В РЕЖИМЕ НАВИГАЦИИ */}
+      {weekNavigationMode && (
+        <View style={[styles.weekNavigationContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <TouchableOpacity
+            style={[styles.weekNavButton, { backgroundColor: colors.surface }]}
+            onPress={goToPreviousWeek}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="chevron-back" size={20} color={colors.primary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.weekTitleContainer}
+            onPress={goToCurrentWeek}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.weekTitle, { color: colors.text }]}>
+              {getWeekTitle()}
+            </Text>
+            {selectedWeekOffset !== 0 && (
+              <Text style={[styles.weekSubtitle, { color: colors.textSecondary }]}>
+                Нажмите, чтобы вернуться к текущей неделе
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.weekNavButton, { backgroundColor: colors.surface }]}
+            onPress={goToNextWeek}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+      )}
+
       {renderSummaryCards()}
       {renderWeekView()}
       {renderEditModal()}
 
-{/* Новое красивое модальное окно для количественных привычек */}
-{editingCell && editingCell.habitType === 'number' && renderQuantitativeModal({
-  visible: showQuantitativeModal,
-  onRequestClose: handleQuantitativeCancel,
-  habitName: editingCell.habitName,
-  targetValue: editingCell.habitTargetValue || 1,
-  unit: editingCell.habitUnit,
-  inputValue: editValue,
-  onInputChange: setEditValue,
-  onSave: handleQuantitativeSave,
-  onCancel: handleQuantitativeCancel,
-  onDelete: handleDeleteValue,
-  colors: colors,
-  styles: quantitativeModalStyles
-})}
+      {/* Новое красивое модальное окно для количественных привычек */}
+      {editingCell && editingCell.habitType === 'number' && renderQuantitativeModal({
+        visible: showQuantitativeModal,
+        onRequestClose: handleQuantitativeCancel,
+        habitName: editingCell.habitName,
+        targetValue: editingCell.habitTargetValue || 1,
+        unit: editingCell.habitUnit,
+        inputValue: editValue,
+        onInputChange: setEditValue,
+        onSave: handleQuantitativeSave,
+        onCancel: handleQuantitativeCancel,
+        onDelete: handleDeleteValue,
+        colors: colors,
+        styles: quantitativeModalStyles
+      })}
 
-{/* Новое красивое модальное окно для весовых привычек */}
-{editingCell && editingCell.habitType === 'weight' && renderWeightModalComponent({
-  visible: showWeightModal,
-  onRequestClose: handleWeightCancel,
-  habitName: editingCell.habitName,
-  targetValue: editingCell.habitTargetWeight || 70,
-  currentValue: parseFloat(editValue) || 0,
-  weightValue: editValue,
-  onWeightChange: setEditValue,
-  onSave: handleWeightSave,
-  onCancel: handleWeightCancel,
-  onDelete: handleDeleteValue,
-  colors: colors,
-  styles: weightModalStyles,
-  weightIntegerScrollRef: weightIntegerScrollRef,
-  weightDecimalScrollRef: weightDecimalScrollRef
-})}
+      {/* Новое красивое модальное окно для весовых привычек */}
+      {editingCell && editingCell.habitType === 'weight' && renderWeightModalComponent({
+        visible: showWeightModal,
+        onRequestClose: handleWeightCancel,
+        habitName: editingCell.habitName,
+        targetValue: editingCell.habitTargetWeight || 70,
+        currentValue: parseFloat(editValue) || 0,
+        weightValue: editValue,
+        onWeightChange: setEditValue,
+        onSave: handleWeightSave,
+        onCancel: handleWeightCancel,
+        onDelete: handleDeleteValue,
+        colors: colors,
+        styles: weightModalStyles,
+        weightIntegerScrollRef: weightIntegerScrollRef,
+        weightDecimalScrollRef: weightDecimalScrollRef
+      })}
 
-{/* Новое красивое модальное окно для булевых привычек */}
-{editingCell && editingCell.habitType === 'boolean' && renderBooleanModalComponent({
-  visible: showBooleanModal,
-  onRequestClose: handleBooleanCancel,
-  habitName: editingCell.habitName,
-  isCompleted: booleanValue,
-  onToggleCompleted: handleBooleanToggle,
-  onSave: handleBooleanSave,
-  onCancel: handleBooleanCancel,
-  onDelete: handleDeleteValue,
-  colors: colors,
-  styles: booleanModalStyles
-})}
+      {/* Новое красивое модальное окно для булевых привычек */}
+      {editingCell && editingCell.habitType === 'boolean' && renderBooleanModalComponent({
+        visible: showBooleanModal,
+        onRequestClose: handleBooleanCancel,
+        habitName: editingCell.habitName,
+        isCompleted: booleanValue,
+        onToggleCompleted: handleBooleanToggle,
+        onSave: handleBooleanSave,
+        onCancel: handleBooleanCancel,
+        onDelete: handleDeleteValue,
+        colors: colors,
+        styles: booleanModalStyles
+      })}
     </View>
   );
 };
@@ -1114,6 +1243,46 @@ const styles = StyleSheet.create({
   archivedLabel: {
     fontSize: 8,
     fontWeight: '500',
+    textAlign: 'center',
+    marginTop: 2,
+    fontStyle: 'italic',
+  },
+
+// === НАВИГАЦИЯ ПО НЕДЕЛЯМ ===
+  weekNavigationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+  },
+
+  weekNavButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  weekTitleContainer: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+  },
+
+  weekTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+
+  weekSubtitle: {
+    fontSize: 12,
     textAlign: 'center',
     marginTop: 2,
     fontStyle: 'italic',

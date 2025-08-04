@@ -54,6 +54,7 @@ const StatisticsScreen = ({
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [showYearPicker, setShowYearPicker] = useState(false);
+  const [weekNavigationMode, setWeekNavigationMode] = useState(false); // Режим навигации по неделям
 
   // === ПЕРИОДЫ ===
   const periods = [
@@ -404,14 +405,36 @@ const StatisticsScreen = ({
         {periods.map(period => (
           <TouchableOpacity
             key={period.id}
-            style={[
-              styles.periodButton,
-              {
-                backgroundColor: selectedPeriod === period.id ? colors.primary : colors.surface,
-                borderColor: selectedPeriod === period.id ? colors.primary : colors.border,
-              }
-            ]}
-            onPress={() => onPeriodChange(period.id)}
+
+           style={[
+                               styles.periodButton,
+                               {
+                                 backgroundColor: (selectedPeriod === period.id || (period.id === 'week' && weekNavigationMode))
+                                   ? colors.primary + '15'
+                                   : 'transparent',
+                                 borderColor: (selectedPeriod === period.id || (period.id === 'week' && weekNavigationMode))
+                                   ? colors.primary
+                                   : colors.border
+                               }
+                             ]}
+
+            onPress={() => {
+                    if (period.id === 'week') {
+                      // Для недели переключаем режим навигации
+                      if (selectedPeriod === 'week') {
+                        // Если уже на неделе - переключаем режим навигации
+                        setWeekNavigationMode(!weekNavigationMode);
+                      } else {
+                        // Если не на неделе - сначала переключаемся на неделю
+                        onPeriodChange(period.id);
+                        setWeekNavigationMode(false);
+                      }
+                    } else {
+                      // Для других периодов - выходим из режима навигации и переключаемся
+                      setWeekNavigationMode(false);
+                      onPeriodChange(period.id);
+                    }
+                  }}
           >
             <Ionicons 
               name={period.icon} 
@@ -419,10 +442,12 @@ const StatisticsScreen = ({
               color={selectedPeriod === period.id ? '#ffffff' : colors.text}
               style={{ marginRight: SPACING.xs }}
             />
-            <Text style={[
-              styles.periodButtonText,
-              { color: selectedPeriod === period.id ? '#ffffff' : colors.text }
-            ]}>
+<Text style={[
+                    styles.periodButtonText,
+                    { color: (selectedPeriod === period.id || (period.id === 'week' && weekNavigationMode))
+                      ? colors.primary
+                      : colors.text }
+                  ]}>
               {period.label}
             </Text>
           </TouchableOpacity>
@@ -598,7 +623,8 @@ const StatisticsScreen = ({
           {selectedPeriod === 'week' && (
   <WeekStatistics
     habitsData={getHabitsForPeriod(weekPeriod.weekStart, weekPeriod.weekEnd)}
-
+              weekNavigationMode={weekNavigationMode}
+              onWeekNavigationExit={() => setWeekNavigationMode(false)}
               onHabitToggle={onHabitToggle}
               onHabitUpdateValue={onHabitUpdateValue}
               theme={theme}
