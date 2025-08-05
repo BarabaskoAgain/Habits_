@@ -3,7 +3,7 @@
 // StatisticsScreen.js - ГЛАВНЫЙ КОМПОНЕНТ (ИСПРАВЛЕННЫЙ РАСЧЕТ ПЛАНОВ)
 // ====================================
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -55,6 +55,8 @@ const StatisticsScreen = ({
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [showYearPicker, setShowYearPicker] = useState(false);
   const [weekNavigationMode, setWeekNavigationMode] = useState(false); // Режим навигации по неделям
+  const [monthNavigationMode, setMonthNavigationMode] = useState(false); // Режим навигации по месяцам
+  const [yearNavigationMode, setYearNavigationMode] = useState(false); // Режим навигации по годам
 
   // === ПЕРИОДЫ ===
   const periods = [
@@ -68,6 +70,28 @@ const StatisticsScreen = ({
     'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
     'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
   ];
+
+  // === ФУНКЦИЯ СБРОСА К ТЕКУЩЕМУ МЕСЯЦУ ===
+    const resetToCurrentMonth = useCallback(() => {
+      const currentDate = new Date();
+      setSelectedMonth(currentDate.getMonth());
+      setSelectedYear(currentDate.getFullYear());
+      setMonthNavigationMode(false);
+    }, []);
+
+    // === ФУНКЦИЯ СБРОСА К ТЕКУЩЕМУ ГОДУ ===
+      const resetToCurrentYear = useCallback(() => {
+        const currentDate = new Date();
+        setSelectedYear(currentDate.getFullYear());
+        setYearNavigationMode(false);
+      }, []);
+
+    // === ЭФФЕКТ ДЛЯ ВЫХОДА ИЗ РЕЖИМА НАВИГАЦИИ ПРИ СМЕНЕ ЭКРАНА ===
+    useEffect(() => {
+      if (!monthNavigationMode) {
+        resetToCurrentMonth();
+      }
+    }, [monthNavigationMode, resetToCurrentMonth]);
 
   // === ОБЩИЕ УТИЛИТЫ (ПЕРЕДАЮТСЯ В ДОЧЕРНИЕ КОМПОНЕНТЫ) ===
   
@@ -406,33 +430,55 @@ const StatisticsScreen = ({
           <TouchableOpacity
             key={period.id}
 
-           style={[
-                               styles.periodButton,
-                               {
-                                 backgroundColor: (selectedPeriod === period.id || (period.id === 'week' && weekNavigationMode))
-                                   ? colors.primary + '15'
-                                   : 'transparent',
-                                 borderColor: (selectedPeriod === period.id || (period.id === 'week' && weekNavigationMode))
-                                   ? colors.primary
-                                   : colors.border
-                               }
-                             ]}
+style={[
+              styles.periodButton,
+              {
+                backgroundColor: (selectedPeriod === period.id ||
+                                 (period.id === 'week' && weekNavigationMode) ||
+                                 (period.id === 'month' && monthNavigationMode) ||
+                                 (period.id === 'year' && yearNavigationMode))
+                  ? colors.primary + '15'
+                  : 'transparent',
+                borderColor: (selectedPeriod === period.id ||
+                             (period.id === 'week' && weekNavigationMode) ||
+                             (period.id === 'month' && monthNavigationMode) ||
+                             (period.id === 'year' && yearNavigationMode))
+                  ? colors.primary
+                  : colors.border
+              }
+            ]}
 
             onPress={() => {
                     if (period.id === 'week') {
-                      // Для недели переключаем режим навигации
+                      // Логика для недели
                       if (selectedPeriod === 'week') {
-                        // Если уже на неделе - переключаем режим навигации
                         setWeekNavigationMode(!weekNavigationMode);
                       } else {
-                        // Если не на неделе - сначала переключаемся на неделю
                         onPeriodChange(period.id);
                         setWeekNavigationMode(false);
                       }
-                    } else {
-                      // Для других периодов - выходим из режима навигации и переключаемся
+                      setMonthNavigationMode(false);
+                      setYearNavigationMode(false);
+                    } else if (period.id === 'month') {
+                      // Логика для месяца
+                      if (selectedPeriod === 'month') {
+                        setMonthNavigationMode(!monthNavigationMode);
+                      } else {
+                        onPeriodChange(period.id);
+                        setMonthNavigationMode(false);
+                      }
                       setWeekNavigationMode(false);
-                      onPeriodChange(period.id);
+                      setYearNavigationMode(false);
+                    } else if (period.id === 'year') {
+                      // Логика для года
+                      if (selectedPeriod === 'year') {
+                        setYearNavigationMode(!yearNavigationMode);
+                      } else {
+                        onPeriodChange(period.id);
+                        setYearNavigationMode(false);
+                      }
+                      setWeekNavigationMode(false);
+                      setMonthNavigationMode(false);
                     }
                   }}
           >
@@ -442,9 +488,13 @@ const StatisticsScreen = ({
               color={selectedPeriod === period.id ? '#ffffff' : colors.text}
               style={{ marginRight: SPACING.xs }}
             />
-<Text style={[
+
+                  <Text style={[
                     styles.periodButtonText,
-                    { color: (selectedPeriod === period.id || (period.id === 'week' && weekNavigationMode))
+                    { color: (selectedPeriod === period.id ||
+                             (period.id === 'week' && weekNavigationMode) ||
+                             (period.id === 'month' && monthNavigationMode) ||
+                             (period.id === 'year' && yearNavigationMode))
                       ? colors.primary
                       : colors.text }
                   ]}>
@@ -456,13 +506,19 @@ const StatisticsScreen = ({
     </View>
   );
 
-  // === РЕНДЕР СЕЛЕКТОРА ДАТЫ ===
+// === РЕНДЕР СЕЛЕКТОРА ДАТЫ ===
   const renderDateSelector = () => {
-    if (selectedPeriod === 'week') return null;
-    
+    // Показываем только если включен режим навигации
+    const shouldShow = (selectedPeriod === 'month' && monthNavigationMode) ||
+                      (selectedPeriod === 'year' && yearNavigationMode);
+
+    if (!shouldShow) {
+      return null;
+    }
+
     return (
       <View style={styles.dateSelector}>
-        {selectedPeriod === 'month' && (
+        {selectedPeriod === 'month' && monthNavigationMode && (
           <TouchableOpacity
             style={[styles.dateButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
             onPress={() => setShowMonthPicker(true)}
@@ -473,16 +529,19 @@ const StatisticsScreen = ({
             <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
         )}
-        
-        <TouchableOpacity
-          style={[styles.dateButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          onPress={() => setShowYearPicker(true)}
-        >
-          <Text style={[styles.dateButtonText, { color: colors.text }]}>
-            {selectedYear}
-          </Text>
-          <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
-        </TouchableOpacity>
+
+        {(selectedPeriod === 'month' && monthNavigationMode) ||
+         (selectedPeriod === 'year' && yearNavigationMode) ? (
+          <TouchableOpacity
+            style={[styles.dateButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => setShowYearPicker(true)}
+          >
+            <Text style={[styles.dateButtonText, { color: colors.text }]}>
+              {selectedYear}
+            </Text>
+            <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
+        ) : null}
       </View>
     );
   };
