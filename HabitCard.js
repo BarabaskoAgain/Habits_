@@ -1757,8 +1757,8 @@ export const booleanModalStyles = StyleSheet.create({
   },
 
   deleteButton: {
-    width: 44,
-    height: 44,
+    width: 33,
+    height: 33,
     borderRadius: BORDER_RADIUS.md,
     justifyContent: 'center',
     alignItems: 'center',

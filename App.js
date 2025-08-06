@@ -543,12 +543,12 @@ const initializeApp = useCallback(async () => {
   handleInitializationError,
 ]);
 
-  // === ИСПРАВЛЕННАЯ ИНИЦИАЛИЗАЦИЯ УВЕДОМЛЕНИЙ (ТОЛЬКО ОДИН РАЗ) ===
+  // === ИСПРАВЛЕННАЯ ИНИЦИАЛИЗАЦИЯ УВЕДОМЛЕНИЙ (НЕЗАВИСИМО ОТ ПРИВЫЧЕК) ===
   useEffect(() => {
     const initializeNotifications = async () => {
-      // Проверяем, что приложение готово, есть привычки и уведомления еще не инициализированы
-      if (isReady && habits.length > 0 && !notificationsInitialized) {
-        console.log('🔔 Инициализация уведомлений ОДИН РАЗ...');
+      // Инициализируем уведомления независимо от количества привычек
+      if (!notificationsInitialized) {
+        console.log('🔔 Инициализация уведомлений при запуске приложения...');
 
         try {
           // Инициализируем уведомления
@@ -557,13 +557,18 @@ const initializeApp = useCallback(async () => {
           if (notificationsEnabled) {
             console.log('✅ Уведомления инициализированы успешно');
 
-            // Планируем напоминания для всех привычек одним вызовом
-            await NotificationManager.scheduleAllReminders(habits, settings);
+            // Если есть привычки - планируем напоминания
+            if (habits.length > 0) {
+              console.log(`📋 Планируем напоминания для ${habits.length} привычек...`);
+              await NotificationManager.scheduleAllReminders(habits, settings);
+            } else {
+              console.log('📝 Привычек пока нет, уведомления будут запланированы при создании');
+            }
 
             // Показываем отладочную информацию
             await NotificationManager.debugInfo();
           } else {
-            console.log('❌ Уведомления отключены пользователем');
+            console.log('❌ Уведомления отключены пользователем или устройство не поддерживает');
           }
 
           // Помечаем как инициализированные
@@ -576,7 +581,30 @@ const initializeApp = useCallback(async () => {
     }
 
     initializeNotifications();
-  }, [habits, notificationsInitialized, settings]);
+  }, [notificationsInitialized, habits, settings]);
+
+  // === ПЕРЕИНИЦИАЛИЗАЦИЯ ПРИ ИЗМЕНЕНИИ НАСТРОЕК УВЕДОМЛЕНИЙ ===
+    useEffect(() => {
+      const reinitializeNotifications = async () => {
+        if (notificationsInitialized && habits.length > 0) {
+          console.log('🔄 Переинициализация уведомлений из-за изменения настроек...');
+
+          try {
+            // Отменяем все старые уведомления
+            await NotificationManager.cancelAllNotifications();
+
+            // Планируем заново все напоминания с новыми настройками
+            await NotificationManager.scheduleAllReminders(habits, settings);
+
+            console.log('✅ Уведомления переинициализированы с новыми настройками');
+          } catch (error) {
+            console.error('🚨 Ошибка переинициализации уведомлений:', error);
+          }
+        }
+      };
+
+      reinitializeNotifications();
+    }, [settings.notifications, notificationsInitialized, habits, settings]);
 
   // === ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ ПРИ МОНТИРОВАНИИ ===
   useEffect(() => {
