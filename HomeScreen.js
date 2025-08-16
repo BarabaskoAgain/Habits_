@@ -218,7 +218,17 @@ const HomeScreen = ({ navigation }) => {
         const parsed = JSON.parse(stored);
         const validHabits = parsed.filter(habit => 
           habit && habit.id && habit.name && typeof habit.name === 'string'
-        );
+        ).map(habit => ({
+          ...habit,
+          // Добавляем недостающие поля для старых привычек
+          reminderEnabled: habit.reminderEnabled !== undefined
+            ? habit.reminderEnabled
+            : true,
+          reminderTime: habit.reminderTime || '09:00',
+          logs: habit.logs || [],
+          color: habit.color || '#2196F3',
+          targetDaysPerWeek: habit.targetDaysPerWeek || 7, // Добавляем недельный план
+        }));
         setHabits(validHabits);
         return validHabits;
       } else {

@@ -28,6 +28,16 @@ import SettingsScreen from './SettingsScreen';
 
 // ИСПРАВЛЕННЫЙ ИМПОРТ УВЕДОМЛЕНИЙ
 import NotificationManager from './NotificationManager';
+import * as Notifications from 'expo-notifications';
+
+// === ОБРАБОТЧИК УВЕДОМЛЕНИЙ ДЛЯ ПОКАЗА ===
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 // Импорт констант
 import {
@@ -405,13 +415,20 @@ const archiveHabit = useCallback(async (habitId) => {
       const stored = await AsyncStorage.getItem(STORAGE_KEYS.habits);
       if (stored) {
         const parsed = JSON.parse(stored);
-        // ДОБАВЛЕНО: проверка цвета для старых привычек
-        const habitsWithColors = parsed.map((habit) => ({
+        // ДОБАВЛЕНО: проверка всех важных полей для старых привычек
+        const habitsWithDefaults = parsed.map((habit) => ({
           ...habit,
           color: habit.color || '#2196F3', // Синий по умолчанию
+          // КРИТИЧНО: добавляем поля уведомлений для старых привычек
+          reminderEnabled: habit.reminderEnabled !== undefined
+            ? habit.reminderEnabled
+            : true,
+          reminderTime: habit.reminderTime || '09:00',
+          logs: habit.logs || [], // Добавляем логи если их нет
+          targetDaysPerWeek: habit.targetDaysPerWeek || 7, // Добавляем недельный план
         }));
-        setHabits(habitsWithColors);
-        return habitsWithColors;
+        setHabits(habitsWithDefaults);
+        return habitsWithDefaults;
       } else {
         // Первый запуск - создаем демо привычки
         console.log('Первый запуск - создаем демо привычки');
@@ -622,17 +639,83 @@ const initializeApp = useCallback(async () => {
     };
   }, []);
 
+  // === ОБНОВЛЕНИЕ УВЕДОМЛЕНИЙ ПРИ ВЫПОЛНЕНИИ ПРИВЫЧКИ ===
+  useEffect(() => {
+    const updateNotificationsAfterCompletion = async () => {
+      if (!notificationsInitialized || habits.length === 0) return;
+
+      // Проверяем и обновляем уведомления для всех привычек
+      for (const habit of habits) {
+        if (habit.reminderEnabled && !habit.archived) {
+          await NotificationManager.scheduleHabitReminder(habit, settings);
+        }
+      }
+    };
+
+    updateNotificationsAfterCompletion();
+  }, [habits, notificationsInitialized, settings]);
+
+  // === ЕЖЕНЕДЕЛЬНАЯ ПЕРЕИНИЦИАЛИЗАЦИЯ (ПОНЕДЕЛЬНИК) ===
+  useEffect(() => {
+    const checkForNewWeek = async () => {
+      if (!notificationsInitialized || habits.length === 0) return;
+
+      const lastCheck = await AsyncStorage.getItem('last_week_check');
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+
+      // Проверяем, понедельник ли сегодня (1)
+      if (dayOfWeek === 1) {
+        const today = now.toISOString().split('T')[0];
+
+        if (lastCheck !== today) {
+          console.log('🔄 Новая неделя! Переинициализация уведомлений...');
+
+          // Отменяем все старые уведомления
+          await NotificationManager.cancelAllNotifications();
+
+          // Планируем заново для всех привычек
+          await NotificationManager.scheduleAllReminders(habits, settings);
+
+          await AsyncStorage.setItem('last_week_check', today);
+        }
+      }
+    };
+
+    checkForNewWeek();
+
+    // Проверяем каждый час
+    const interval = setInterval(checkForNewWeek, 60 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [notificationsInitialized, habits, settings]);
+
   const addHabit = useCallback(
     async (habitData) => {
       try {
         const newHabit = {
           id: generateId(),
-          ...habitData,
-          reminderEnabled: habitData.reminderEnabled !== false, // По умолчанию true
-          reminderTime: habitData.reminderTime || '09:00', // Время по умолчанию
           createdAt: new Date().toISOString(),
           completions: {},
           logs: [], // ВАЖНО: Добавляем пустой массив логов
+          // Применяем данные из формы безопасно
+          name: habitData.name,
+          description: habitData.description,
+          icon: habitData.icon,
+          color: habitData.color,
+          category: habitData.category,
+          type: habitData.type,
+          targetValue: habitData.targetValue,
+          targetWeight: habitData.targetWeight,
+          weightGoal: habitData.weightGoal,
+          unit: habitData.unit,
+          targetDaysPerWeek: habitData.targetDaysPerWeek,
+          allowOverachievement: habitData.allowOverachievement,
+          // Поля уведомлений с значениями по умолчанию
+          reminderEnabled: habitData.reminderEnabled !== undefined
+            ? habitData.reminderEnabled
+            : true,
+          reminderTime: habitData.reminderTime || '09:00',
         };
 
         const newHabits = [...habits, newHabit];
@@ -697,19 +780,24 @@ const initializeApp = useCallback(async () => {
           if (habit.id === editingHabit.id) {
             return {
               ...habit,
-              ...habitData,
-              // Явно сохраняем важные поля которые не должны изменяться
-              id: habit.id,
-              createdAt: habit.createdAt,
-              completions: habit.completions || {},
-              logs: habit.logs || [],
-              // Сохраняем поля уведомлений если они не переданы
-              reminderEnabled:
-                habitData.reminderEnabled !== undefined
-                  ? habitData.reminderEnabled
-                  : habit.reminderEnabled,
-              reminderTime:
-                habitData.reminderTime || habit.reminderTime || '09:00',
+              // Применяем только нужные поля из формы
+              name: habitData.name,
+              description: habitData.description,
+              icon: habitData.icon,
+              color: habitData.color,
+              category: habitData.category,
+              type: habitData.type,
+              targetValue: habitData.targetValue,
+              targetWeight: habitData.targetWeight,
+              weightGoal: habitData.weightGoal,
+              unit: habitData.unit,
+              targetDaysPerWeek: habitData.targetDaysPerWeek,
+              allowOverachievement: habitData.allowOverachievement,
+              // Проверяем поля уведомлений
+              reminderEnabled: habitData.reminderEnabled !== undefined
+                ? habitData.reminderEnabled
+                : (habit.reminderEnabled !== undefined ? habit.reminderEnabled : true),
+              reminderTime: habitData.reminderTime || habit.reminderTime || '09:00',
               // Обновляем время изменения
               updatedAt: new Date().toISOString(),
             };
@@ -805,12 +893,20 @@ const initializeApp = useCallback(async () => {
 
         console.log('Сохраняем новые привычки:', updatedHabits);
         await saveHabits(updatedHabits);
+
+        // НОВОЕ: Обновляем уведомления после изменения выполнения
+        if (notificationsInitialized) {
+          const updatedHabit = updatedHabits.find(h => h.id === habitId);
+          if (updatedHabit && updatedHabit.reminderEnabled) {
+            await NotificationManager.scheduleHabitReminder(updatedHabit, settings);
+          }
+        }
       } catch (error) {
         console.error('Ошибка переключения привычки:', error);
         Alert.alert('Ошибка', 'Не удалось обновить привычку');
       }
     },
-    [habits, saveHabits]
+    [habits, saveHabits, notificationsInitialized, settings]
   );
 
   const updateHabitValue = useCallback(
